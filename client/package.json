@@ -1,4 +1,4 @@
-cat > client/package.json << 'EOF'
+
 {
   "name": "arenax-client",
   "version": "1.0.0",
