@@ -1,4 +1,4 @@
-cat > README.md << 'EOF'
+
 # ArenaX
 Tournament management platform for Blackjack, Chess and Checkers.
 
