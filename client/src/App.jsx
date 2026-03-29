@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
 import { Box } from '@mui/material'
+import { AuthProvider } from './contexts/AuthContext.jsx'
 import Login from './pages/Auth/Login'
 import Register from './pages/Auth/Register'
 import Lobby from './pages/Lobby/Lobby'
@@ -33,21 +34,23 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ maxWidth: '100vw', overflowX: 'hidden' }}>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/lobby" element={<Lobby />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/wallet" element={<Wallet />} />
-            <Route path="/game/blackjack/:id" element={<Blackjack />} />
-            <Route path="/game/chess/:id" element={<Chess />} />
-            <Route path="/game/checkers/:id" element={<Checkers />} />
-          </Routes>
-        </BrowserRouter>
-      </Box>
+      <AuthProvider>
+        <Box sx={{ maxWidth: '100vw', overflowX: 'hidden' }}>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/lobby" element={<Lobby />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/wallet" element={<Wallet />} />
+              <Route path="/game/blackjack/:id" element={<Blackjack />} />
+              <Route path="/game/chess/:id" element={<Chess />} />
+              <Route path="/game/checkers/:id" element={<Checkers />} />
+            </Routes>
+          </BrowserRouter>
+        </Box>
+      </AuthProvider>
     </ThemeProvider>
   )
 }
