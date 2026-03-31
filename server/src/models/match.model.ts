@@ -92,6 +92,7 @@ const matchSchema = new Schema<IMatch>(
 
 matchSchema.index({ tournament: 1, round: 1 });
 matchSchema.index({ status: 1 });
+
 const Match = model<IMatch>("Match", matchSchema);
 
 export default Match;

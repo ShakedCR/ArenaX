@@ -6,6 +6,7 @@ import passport from "./config/passport";
 import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
 import tournamentRoutes from "./routes/tournament.routes";
+import matchRoutes from "./routes/match.routes";
 
 const app = express();
 
@@ -37,5 +38,6 @@ app.get("/", (_req: Request, res: Response) => {
 app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/tournaments", tournamentRoutes);
+app.use("/api/matches", matchRoutes);
 
 export default app;
