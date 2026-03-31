@@ -3,6 +3,8 @@ import { Types } from "mongoose";
 import Tournament from "../models/tournament.model";
 import Match from "../models/match.model";
 import { AuthRequest } from "../middleware/auth.middleware";
+import User from "../models/user.model";
+import Transaction from "../models/transaction.model";
 
 /* ================= Helpers ================= */
 
@@ -139,40 +141,96 @@ export const getTournamentById = async (req: AuthRequest, res: Response) => {
 
 export const joinTournament = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({
+        message: "Unauthorized"
+      });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid tournament ID"
+      });
+    }
 
     const tournament = await Tournament.findById(id);
 
     if (!tournament) {
-      return res.status(404).json({ message: "Tournament not found" });
+      return res.status(404).json({
+        message: "Tournament not found"
+      });
     }
 
     if (tournament.status !== "open") {
-      return res.status(400).json({ message: "Tournament not open" });
+      return res.status(400).json({
+        message: "Tournament is not open for registration"
+      });
     }
 
     const userObjectId = new Types.ObjectId(req.userId);
 
-    if (tournament.participants.some(p => p.equals(userObjectId))) {
-      return res.status(400).json({ message: "Already joined" });
+    const isAlreadyParticipant = tournament.participants.some((participantId) =>
+      participantId.equals(userObjectId)
+    );
+
+    if (isAlreadyParticipant) {
+      return res.status(400).json({
+        message: "User already joined this tournament"
+      });
     }
 
     if (tournament.participants.length >= tournament.maxParticipants) {
-      return res.status(400).json({ message: "Tournament full" });
+      return res.status(400).json({
+        message: "Tournament is full"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    if (tournament.entryFee > 0) {
+      if (user.walletBalance < tournament.entryFee) {
+        return res.status(400).json({
+          message: "Insufficient wallet balance to join this tournament"
+        });
+      }
+
+      user.walletBalance -= tournament.entryFee;
+      tournament.prizePool += tournament.entryFee;
+
+      await user.save();
+
+      await Transaction.create({
+        user: user._id,
+        tournament: tournament._id,
+        amount: tournament.entryFee,
+        type: "entry_fee",
+        status: "completed",
+        description: `Entry fee for tournament: ${tournament.title}`
+      });
     }
 
     tournament.participants.push(userObjectId);
     await tournament.save();
 
     return res.status(200).json({
-      message: "Joined successfully",
+      message: "Joined tournament successfully",
+      walletBalance: user.walletBalance,
       tournament
     });
   } catch (error) {
-    console.error("Join error:", error);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Join tournament error:", error);
+
+    return res.status(500).json({
+      message: "Server error while joining tournament"
+    });
   }
 };
 
@@ -404,38 +462,90 @@ export const joinTournamentByInviteCode = async (
   res: Response
 ) => {
   try {
-    const { inviteCode } = req.params;
+    const inviteCode = req.params.inviteCode as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({
+        message: "Unauthorized"
+      });
+    }
 
     const tournament = await Tournament.findOne({ inviteCode });
 
-    if (!tournament) return res.status(404).json({ message: "Not found" });
+    if (!tournament) {
+      return res.status(404).json({
+        message: "Tournament not found"
+      });
+    }
 
     if (tournament.status !== "open") {
-      return res.status(400).json({ message: "Tournament not open" });
+      return res.status(400).json({
+        message: "Tournament is not open for registration"
+      });
     }
 
     const userObjectId = new Types.ObjectId(req.userId);
 
-    if (tournament.participants.some(p => p.equals(userObjectId))) {
-      return res.status(400).json({ message: "Already joined" });
+    const isAlreadyParticipant = tournament.participants.some((participantId) =>
+      participantId.equals(userObjectId)
+    );
+
+    if (isAlreadyParticipant) {
+      return res.status(400).json({
+        message: "User already joined this tournament"
+      });
     }
 
     if (tournament.participants.length >= tournament.maxParticipants) {
-      return res.status(400).json({ message: "Tournament full" });
+      return res.status(400).json({
+        message: "Tournament is full"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    if (tournament.entryFee > 0) {
+      if (user.walletBalance < tournament.entryFee) {
+        return res.status(400).json({
+          message: "Insufficient wallet balance to join this tournament"
+        });
+      }
+
+      user.walletBalance -= tournament.entryFee;
+      tournament.prizePool += tournament.entryFee;
+
+      await user.save();
+
+      await Transaction.create({
+        user: user._id,
+        tournament: tournament._id,
+        amount: tournament.entryFee,
+        type: "entry_fee",
+        status: "completed",
+        description: `Entry fee for tournament: ${tournament.title}`
+      });
     }
 
     tournament.participants.push(userObjectId);
     await tournament.save();
 
-    return res.json({
-      message: "Joined via invite",
+    return res.status(200).json({
+      message: "Joined tournament successfully via invite link",
+      walletBalance: user.walletBalance,
       tournament
     });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Join tournament by invite code error:", error);
+
+    return res.status(500).json({
+      message: "Server error while joining tournament via invite link"
+    });
   }
 };
 
