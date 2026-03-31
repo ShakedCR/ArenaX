@@ -16,7 +16,7 @@ POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "ofek@test.com",
+  "email": "ofek1@test.com",
   "password": "123456"
 }
 
@@ -108,3 +108,88 @@ Authorization: Bearer {{token}}
     "reportedBy": "tournament_creator"
   }
 }
+
+@baseUrl = http://localhost:3000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
+@otherUserToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiYTUzZDY2Yzg0OGE3NWE1YmE0NmYiLCJpYXQiOjE3NzQ5NjM2MzksImV4cCI6MTc3NTU2ODQzOX0.6DrLjEI9N8AkOCb1tt_aFx0xxFYbL8DkpYZuXUdCz4Q
+@tournamentId = 69cbcbe495b8b605a52e775f
+@inviteCode = 3RPSUDJS6G
+
+### 1. Create tournament
+POST {{baseUrl}}/api/tournaments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Invite Test Tournament",
+  "description": "Testing invite link flow",
+  "gameTitle": "CS2",
+  "gameMode": "5v5",
+  "platform": "PC",
+  "format": "single_elimination",
+  "entryFee": 0,
+  "prizePool": 100,
+  "maxParticipants": 8,
+  "startDate": "2026-04-10T18:00:00.000Z",
+  "settings": {
+    "serverRegion": "EU",
+    "bestOf": 1,
+    "customRules": ["MR12"]
+  }
+}
+
+###
+
+### 2. Open tournament
+PATCH {{baseUrl}}/api/tournaments/{{tournamentId}}/open
+Authorization: Bearer {{token}}
+
+###
+
+### 3. Get invite link
+GET {{baseUrl}}/api/tournaments/{{tournamentId}}/invite-link
+Authorization: Bearer {{token}}
+
+###
+
+### 4. Get tournament by invite code
+GET {{baseUrl}}/api/tournaments/invite/{{inviteCode}}
+
+###
+
+### 5. Join tournament by invite code with another user
+POST {{baseUrl}}/api/tournaments/invite/{{inviteCode}}/join
+Authorization: Bearer {{otherUserToken}}
+
+###
+
+### 6. Try joining again with the same user (should fail)
+POST {{baseUrl}}/api/tournaments/invite/{{inviteCode}}/join
+Authorization: Bearer {{otherUserToken}}
+
+###
+
+### 7. Get tournament by ID and verify participant was added
+GET {{baseUrl}}/api/tournaments/{{tournamentId}}
+
+###
+
+### 8. Try getting invite link with non-creator user (should fail)
+GET {{baseUrl}}/api/tournaments/{{tournamentId}}/invite-link
+Authorization: Bearer {{otherUserToken}}
+
+###
+
+### 9. Try joining without token (should fail)
+POST {{baseUrl}}/api/tournaments/invite/{{inviteCode}}/join
+
+###
+
+### 10. Try using invalid invite code (should fail)
+GET {{baseUrl}}/api/tournaments/invite/INVALID123
+
+###
+
+### 11. Try joining invalid invite code (should fail)
+POST {{baseUrl}}/api/tournaments/invite/INVALID123/join
+Authorization: Bearer {{otherUserToken}}
