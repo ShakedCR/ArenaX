@@ -438,3 +438,47 @@ export const joinTournamentByInviteCode = async (
     return res.status(500).json({ message: "Server error" });
   }
 };
+
+export const regenerateTournamentInviteCode = async (
+  req: AuthRequest,
+  res: Response
+) => {
+  try {
+    const id = req.params.id as string;
+
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
+
+    const tournament = await Tournament.findById(id);
+
+    if (!tournament) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+
+    if (!isTournamentCreator(tournament.createdBy, req.userId)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    const newInviteCode = await generateUniqueInviteCode();
+    tournament.inviteCode = newInviteCode;
+
+    await tournament.save();
+
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const inviteLink = `${clientUrl}/tournaments/join/${tournament.inviteCode}`;
+
+    return res.status(200).json({
+      message: "Invite code regenerated successfully",
+      inviteCode: tournament.inviteCode,
+      inviteLink
+    });
+  } catch (error) {
+    console.error("Regenerate invite code error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};

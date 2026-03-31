@@ -10,7 +10,8 @@ import {
   startTournament,
   getTournamentInviteLink,
   getTournamentByInviteCode,
-  joinTournamentByInviteCode
+  joinTournamentByInviteCode,
+  regenerateTournamentInviteCode
 } from "../controllers/tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -21,6 +22,7 @@ const router = Router();
 router.get("/", getAllTournaments);
 router.get("/invite/:inviteCode", getTournamentByInviteCode);
 router.get("/:id", getTournamentById);
+router.patch("/:id/regenerate-invite", authMiddleware, regenerateTournamentInviteCode);
 
 /* ================= Protected routes ================= */
 
