@@ -21,8 +21,8 @@ Content-Type: application/json
 }
 
 ###
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTM4MDEsImV4cCI6MTc3NTU1ODYwMX0.PdmkNQYxtRj495Du1GgpFk9s_Xtz6ySvvCJgeXsZIYA
-@tournamentId = 69cba5e066c848a75a5ba472
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
+@tournamentId = 69cba9bed8fdd4f285036b1e
 
 ### Get Me
 GET http://localhost:3000/api/auth/me
@@ -71,3 +71,18 @@ Authorization: Bearer {{token}}
 ### Delete Tournament
 DELETE http://localhost:3000/api/tournaments/{{tournamentId}}
 Authorization: Bearer {{token}}
+
+### Open Tournament
+PATCH http://localhost:3000/api/tournaments/{{tournamentId}}/open
+Authorization: Bearer {{token}}
+
+###
+
+### Start Tournament
+PATCH http://localhost:3000/api/tournaments/{{tournamentId}}/start
+Authorization: Bearer {{token}}
+
+###
+
+### Get Tournament Matches
+GET http://localhost:3000/api/matches/tournament/{{tournamentId}}
