@@ -25,6 +25,7 @@ export interface ITournamentSettings {
 
 export interface ITournament extends Document {
   title: string;
+  inviteCode: string;
   description?: string;
   gameTitle: string;
   gameMode?: string;
@@ -49,6 +50,12 @@ const tournamentSchema = new Schema<ITournament>(
     title: {
       type: String,
       required: true,
+      trim: true
+    },
+    inviteCode: {
+      type: String,
+      required: true,
+      unique: true,
       trim: true
     },
     description: {
@@ -137,6 +144,8 @@ const tournamentSchema = new Schema<ITournament>(
 
 tournamentSchema.index({ gameTitle: 1, status: 1 });
 tournamentSchema.index({ createdBy: 1 });
+tournamentSchema.index({ inviteCode: 1 }, { unique: true });
+
 const Tournament = model<ITournament>("Tournament", tournamentSchema);
 
 export default Tournament;

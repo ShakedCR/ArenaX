@@ -7,17 +7,28 @@ import {
   updateTournament,
   deleteTournament,
   openTournament,
-  startTournament
+  startTournament,
+  getTournamentInviteLink,
+  getTournamentByInviteCode,
+  joinTournamentByInviteCode
 } from "../controllers/tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
 
+/* ================= Public routes ================= */
+
 router.get("/", getAllTournaments);
+router.get("/invite/:inviteCode", getTournamentByInviteCode);
 router.get("/:id", getTournamentById);
+
+/* ================= Protected routes ================= */
 
 router.post("/", authMiddleware, createTournament);
 router.post("/:id/join", authMiddleware, joinTournament);
+router.post("/invite/:inviteCode/join", authMiddleware, joinTournamentByInviteCode);
+
+router.get("/:id/invite-link", authMiddleware, getTournamentInviteLink);
 
 router.put("/:id", authMiddleware, updateTournament);
 router.delete("/:id", authMiddleware, deleteTournament);
