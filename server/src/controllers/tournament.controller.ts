@@ -155,3 +155,102 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
     });
   }
 };
+
+export const updateTournament = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.userId) {
+      return res.status(401).json({
+        message: "Unauthorized"
+      });
+    }
+
+    const tournament = await Tournament.findById(id);
+
+    if (!tournament) {
+      return res.status(404).json({
+        message: "Tournament not found"
+      });
+    }
+
+    if (tournament.createdBy.toString() !== req.userId) {
+      return res.status(403).json({
+        message: "Forbidden: only the tournament creator can update this tournament"
+      });
+    }
+
+    const allowedUpdates = [
+      "title",
+      "description",
+      "gameTitle",
+      "gameMode",
+      "platform",
+      "format",
+      "entryFee",
+      "prizePool",
+      "maxParticipants",
+      "startDate",
+      "endDate",
+      "settings",
+      "status"
+    ];
+
+    for (const key of allowedUpdates) {
+      if (req.body[key] !== undefined) {
+        (tournament as any)[key] = req.body[key];
+      }
+    }
+
+    await tournament.save();
+
+    return res.status(200).json({
+      message: "Tournament updated successfully",
+      tournament
+    });
+  } catch (error) {
+    console.error("Update tournament error:", error);
+
+    return res.status(500).json({
+      message: "Server error while updating tournament"
+    });
+  }
+};
+
+export const deleteTournament = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.userId) {
+      return res.status(401).json({
+        message: "Unauthorized"
+      });
+    }
+
+    const tournament = await Tournament.findById(id);
+
+    if (!tournament) {
+      return res.status(404).json({
+        message: "Tournament not found"
+      });
+    }
+
+    if (tournament.createdBy.toString() !== req.userId) {
+      return res.status(403).json({
+        message: "Forbidden: only the tournament creator can delete this tournament"
+      });
+    }
+
+    await Tournament.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      message: "Tournament deleted successfully"
+    });
+  } catch (error) {
+    console.error("Delete tournament error:", error);
+
+    return res.status(500).json({
+      message: "Server error while deleting tournament"
+    });
+  }
+};
