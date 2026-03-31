@@ -9,6 +9,7 @@ import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
 import tournamentRoutes from "./routes/tournament.routes";
 import matchRoutes from "./routes/match.routes";
+import gamesRoutes from "./routes/games.routes";
 
 const app = express();
 
@@ -41,5 +42,6 @@ app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/matches", matchRoutes);
+app.use("/api/games", gamesRoutes);
 
 export default app;
