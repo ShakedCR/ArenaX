@@ -11,7 +11,29 @@ Content-Type: application/json
 
 ###
 
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Mevo",
+  "username": "mevoest1",
+  "email": "mevo1b@test.com",
+  "password": "123456"
+}
+
+###
+
 ### Login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "mevo1b@test.com",
+  "password": "123456"
+}
+
+###
+
 POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
