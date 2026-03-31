@@ -193,3 +193,31 @@ GET {{baseUrl}}/api/tournaments/invite/INVALID123
 ### 11. Try joining invalid invite code (should fail)
 POST {{baseUrl}}/api/tournaments/invite/INVALID123/join
 Authorization: Bearer {{otherUserToken}}
+
+### Get current invite link
+GET http://localhost:3000/api/tournaments/{{tournamentId}}/invite-link
+Authorization: Bearer {{token}}
+
+###
+
+@oldInviteCode = 3RPSUDJS6G
+@newInviteCode = ZU3U7Z0QQ8
+### Regenerate invite code
+PATCH http://localhost:3000/api/tournaments/{{tournamentId}}/regenerate-invite
+Authorization: Bearer {{token}}
+
+###
+
+### Try old invite code (should fail)
+GET http://localhost:3000/api/tournaments/invite/{{oldInviteCode}}
+
+###
+
+### Get tournament by new invite code
+GET http://localhost:3000/api/tournaments/invite/{{newInviteCode}}
+
+###
+
+### Join tournament with new invite code
+POST http://localhost:3000/api/tournaments/invite/{{newInviteCode}}/join
+Authorization: Bearer {{otherUserToken}}
