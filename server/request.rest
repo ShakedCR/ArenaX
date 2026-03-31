@@ -272,3 +272,46 @@ GET {{baseUrl}}/api/users/{{userId}}/stats
 ### Delete user
 DELETE {{baseUrl}}/api/users/{{userId}}
 Authorization: Bearer {{token}}
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
+@transactionId = YOUR_TRANSACTION_ID_HERE
+
+### Get my wallet
+GET {{baseUrl}}/api/wallet/me
+Authorization: Bearer {{token}}
+
+###
+
+### Deposit to wallet
+POST {{baseUrl}}/api/wallet/deposit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 150,
+  "description": "Initial top up"
+}
+
+###
+
+### Withdraw from wallet
+POST {{baseUrl}}/api/wallet/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 50,
+  "description": "Test withdrawal"
+}
+
+###
+
+### Get my transactions
+GET {{baseUrl}}/api/transactions/me
+Authorization: Bearer {{token}}
+
+###
+
+### Get transaction by ID
+GET {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
