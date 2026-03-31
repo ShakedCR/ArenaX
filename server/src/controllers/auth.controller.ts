@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import User from "../models/user.model";
+import { AuthRequest } from "../middleware/auth.middleware";
 
 const generateToken = (userId: string): string => {
   const secret = process.env.JWT_SECRET;
@@ -141,6 +142,36 @@ export const googleAuthSuccess = async (req: Request, res: Response) => {
 
     return res.status(500).json({
       message: "Server error during Google authentication"
+    });
+  }
+};
+
+export const getMe = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({
+        message: "Unauthorized"
+      });
+    }
+
+    const user = await User.findById(req.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found"
+      });
+    }
+
+    const safeUser = buildSafeUser(user);
+
+    return res.status(200).json({
+      user: safeUser
+    });
+  } catch (error) {
+    console.error("Get me error:", error);
+
+    return res.status(500).json({
+      message: "Server error while fetching user"
     });
   }
 };
