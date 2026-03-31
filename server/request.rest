@@ -23,6 +23,10 @@ Content-Type: application/json
 ###
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
 @tournamentId = 69cba9bed8fdd4f285036b1e
+@matchId = 69cbaa52d8fdd4f285036b2f
+@winnerId = 69cba53d66c848a75a5ba46f
+
+
 
 ### Get Me
 GET http://localhost:3000/api/auth/me
@@ -86,3 +90,21 @@ Authorization: Bearer {{token}}
 
 ### Get Tournament Matches
 GET http://localhost:3000/api/matches/tournament/{{tournamentId}}
+
+### Get Tournament Matches
+GET http://localhost:3000/api/matches/tournament/{{tournamentId}}
+
+###
+
+### Report Match Result
+PATCH http://localhost:3000/api/matches/{{matchId}}/result
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "winnerId": "{{winnerId}}",
+  "score": "2-0",
+  "metadata": {
+    "reportedBy": "tournament_creator"
+  }
+}
