@@ -121,3 +121,26 @@ export const login = async (req: Request, res: Response) => {
     });
   }
 };
+
+export const googleAuthSuccess = async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Google authentication failed"
+      });
+    }
+
+    const token = generateToken(user._id.toString());
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+
+    return res.redirect(`${clientUrl}/auth/success?token=${token}`);
+  } catch (error) {
+    console.error("Google auth success error:", error);
+
+    return res.status(500).json({
+      message: "Server error during Google authentication"
+    });
+  }
+};
