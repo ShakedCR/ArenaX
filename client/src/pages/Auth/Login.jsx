@@ -2,6 +2,7 @@ import { Box, Button, Divider, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthInput from '../../components/common/AuthInput'
+import { useAuth } from '../../contexts/useAuth'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -10,13 +11,20 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 export default function Login() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
+  const [error, setError] = useState('')
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
-  const handleSubmit = async () => {
-    console.log('Login:', form)
+ const handleSubmit = async () => {
+  try {
+    await login(form.email, form.password)
+    navigate('/lobby')
+  } catch {
+    setError('Login failed. Please check your credentials.')
   }
+}
 
   return (
     <Box sx={{
@@ -62,6 +70,12 @@ export default function Login() {
           onChange={handleChange('password')}
         />
 
+        {error && (
+          <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
+            {error}
+          </Typography>
+        )}
+
         <Button
           fullWidth
           onClick={handleSubmit}
@@ -80,6 +94,7 @@ export default function Login() {
 
         <Button
           fullWidth
+          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`}
           sx={{
             bgcolor: '#1a1a2e', color: 'white', py: 1.5,
             border: '1px solid rgba(255,255,255,0.1)',
@@ -88,7 +103,6 @@ export default function Login() {
           <img src="https://www.google.com/favicon.ico" width={16} style={{ marginRight: 8 }} />
           Continue with Google
         </Button>
-
         <Typography sx={{ textAlign: 'center', mt: 3, color: '#888', fontSize: 13 }}>
           Don't have an account?{' '}
           <span onClick={() => navigate('/register')}

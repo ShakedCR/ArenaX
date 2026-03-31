@@ -2,6 +2,7 @@ import { Box, Button, Divider, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthInput from '../../components/common/AuthInput'
+import { useAuth } from '../../contexts/useAuth'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -10,12 +11,19 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 export default function Register() {
   const navigate = useNavigate()
-  const [form, setForm] = useState({ username: '', email: '', password: '' })
+  const { register } = useAuth()
+  const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '' })
+  const [error, setError] = useState('')
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
   const handleSubmit = async () => {
-    console.log('Register:', form)
+    try {
+      await register(form.fullName, form.username, form.email, form.password)
+      navigate('/lobby')
+    } catch {
+      setError('Registration failed. Please try again.')
+    }
   }
 
   return (
@@ -47,6 +55,12 @@ export default function Register() {
         </Box>
 
         <AuthInput
+          label="Full Name"
+          placeholder="Enter your full name"
+          value={form.fullName}
+          onChange={handleChange('fullName')}
+        />
+        <AuthInput
           label="Username"
           placeholder="Choose a username"
           value={form.username}
@@ -68,6 +82,12 @@ export default function Register() {
           onChange={handleChange('password')}
         />
 
+        {error && (
+          <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
+            {error}
+          </Typography>
+        )}
+
         <Button
           fullWidth
           onClick={handleSubmit}
@@ -86,6 +106,7 @@ export default function Register() {
 
         <Button
           fullWidth
+          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`}
           sx={{
             bgcolor: '#1a1a2e', color: 'white', py: 1.5,
             border: '1px solid rgba(255,255,255,0.1)',
@@ -94,7 +115,6 @@ export default function Register() {
           <img src="https://www.google.com/favicon.ico" width={16} style={{ marginRight: 8 }} />
           Continue with Google
         </Button>
-
         <Typography sx={{ textAlign: 'center', mt: 3, color: '#888', fontSize: 13 }}>
           Already have an account?{' '}
           <span onClick={() => navigate('/login')}
