@@ -3,7 +3,9 @@ import {
   createTournament,
   getAllTournaments,
   getTournamentById,
-  joinTournament
+  joinTournament,
+  updateTournament,
+  deleteTournament
 } from "../controllers/tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -13,5 +15,7 @@ router.get("/", getAllTournaments);
 router.get("/:id", getTournamentById);
 router.post("/", authMiddleware, createTournament);
 router.post("/:id/join", authMiddleware, joinTournament);
+router.put("/:id", authMiddleware, updateTournament);
+router.delete("/:id", authMiddleware, deleteTournament);
 
 export default router;

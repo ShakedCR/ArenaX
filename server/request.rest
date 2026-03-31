@@ -1,0 +1,73 @@
+### Register
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "fullName": "Ofek Test",
+  "username": "ofektest1",
+  "email": "ofek1@test.com",
+  "password": "123456"
+}
+
+###
+
+### Login
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "ofek@test.com",
+  "password": "123456"
+}
+
+###
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTM4MDEsImV4cCI6MTc3NTU1ODYwMX0.PdmkNQYxtRj495Du1GgpFk9s_Xtz6ySvvCJgeXsZIYA
+@tournamentId = 69cba5e066c848a75a5ba472
+
+### Get Me
+GET http://localhost:3000/api/auth/me
+Authorization: Bearer {{token}}
+
+###
+
+### Create Tournament
+POST http://localhost:3000/api/tournaments
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "ArenaX Test Tournament",
+  "gameTitle": "FIFA",
+  "format": "single_elimination",
+  "maxParticipants": 8,
+  "startDate": "2026-04-10T18:00:00.000Z"
+}
+
+###
+
+### Get All Tournaments
+GET http://localhost:3000/api/tournaments
+
+###
+
+### Join Tournament
+POST http://localhost:3000/api/tournaments/{{tournamentId}}/join
+Authorization: Bearer {{token}}
+
+###
+
+### Update Tournament (creator only)
+PUT http://localhost:3000/api/tournaments/{{tournamentId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Updated Tournament",
+  "prizePool": 999
+}
+
+###
+
+### Delete Tournament
+DELETE http://localhost:3000/api/tournaments/{{tournamentId}}
+Authorization: Bearer {{token}}
