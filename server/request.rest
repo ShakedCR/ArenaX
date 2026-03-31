@@ -221,3 +221,54 @@ GET http://localhost:3000/api/tournaments/invite/{{newInviteCode}}
 ### Join tournament with new invite code
 POST http://localhost:3000/api/tournaments/invite/{{newInviteCode}}/join
 Authorization: Bearer {{otherUserToken}}
+
+@userId = 69cb9d89cf1d7a70b546d5c3
+
+### Get current user
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+###
+
+### Get all users
+GET {{baseUrl}}/api/users
+
+###
+
+### Get user by ID
+GET {{baseUrl}}/api/users/{{userId}}
+
+###
+
+### Update user
+PUT {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Ofek Updated",
+  "username": "ofek_updated",
+  "avatarUrl": "https://example.com/avatar.png",
+  "games": ["CS2", "EA FC 26", "Chess"]
+}
+
+###
+
+### Get user tournaments
+GET {{baseUrl}}/api/users/{{userId}}/tournaments
+
+###
+
+### Get user matches
+GET {{baseUrl}}/api/users/{{userId}}/matches
+
+###
+
+### Get user stats
+GET {{baseUrl}}/api/users/{{userId}}/stats
+
+###
+
+### Delete user
+DELETE {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
