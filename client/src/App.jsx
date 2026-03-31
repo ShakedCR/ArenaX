@@ -12,6 +12,8 @@ import Blackjack from './pages/Game/Blackjack'
 import Chess from './pages/Game/Chess'
 import Checkers from './pages/Game/Checkers'
 import LandingPage from './pages/Landing/LandingPage'
+import TournamentDetail from './pages/Tournament/TournamentDetail'
+import TournamentJoin from './pages/Tournament/TournamentJoin'
 
 const theme = createTheme({
   palette: {
@@ -47,6 +49,8 @@ function App() {
               <Route path="/game/blackjack/:id" element={<Blackjack />} />
               <Route path="/game/chess/:id" element={<Chess />} />
               <Route path="/game/checkers/:id" element={<Checkers />} />
+              <Route path="/tournaments/:id" element={<TournamentDetail />} />
+              <Route path="/tournaments/join/:inviteCode" element={<TournamentJoin />} />
             </Routes>
           </BrowserRouter>
         </Box>

@@ -21,13 +21,13 @@ export default function Lobby() {
 
   useEffect(() => {
     api.get('/tournaments')
-      .then(res => setTournaments(Array.isArray(res.data) ? res.data : []))
+      .then(res => setTournaments(Array.isArray(res.data.tournaments) ? res.data.tournaments : []))
       .catch(err => console.log(err))
       .finally(() => setLoading(false))
   }, [])
 
   const filtered = tournaments.filter(t =>
-    filter === 'All' ? true : t.gameType === filter
+    filter === 'All' ? true : t.gameTitle === filter
   )
 
   return (
@@ -87,9 +87,9 @@ export default function Lobby() {
         ) : (
           filtered.map(t => (
             <TournamentRow
-              key={t.id}
+              key={t._id}
               tournament={t}
-              onJoin={(t) => console.log('Join:', t)}
+              onView={(t) => navigate(`/tournaments/${t._id}`)}
             />
           ))
         )}
