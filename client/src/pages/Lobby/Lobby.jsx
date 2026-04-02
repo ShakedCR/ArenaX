@@ -1,5 +1,6 @@
 import { Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mui/material'
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
@@ -16,6 +17,7 @@ const extractTournaments = (data) =>
 
 export default function Lobby() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
   const [tournaments, setTournaments] = useState([])
@@ -23,18 +25,19 @@ export default function Lobby() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
-const updateTournaments = useCallback((all) => {
-  setTournaments(all)
-  if (user) {
-    const userId = user.id || user._id
-    const my = all.filter(t =>
-      t.createdBy?._id === userId ||
-      t.createdBy === userId ||
-      t.participants?.some(p => p?._id === userId || p === userId)
-    )
-    setMyTournaments(my)
-  }
-}, [user])
+  const updateTournaments = useCallback((all) => {
+    setTournaments(all)
+    if (user) {
+      const userId = user.id || user._id
+      const my = all.filter(t =>
+        t.createdBy?._id === userId ||
+        t.createdBy === userId ||
+        t.participants?.some(p => p?._id === userId || p === userId)
+      )
+      setMyTournaments(my)
+    }
+  }, [user])
+
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
@@ -50,14 +53,26 @@ const updateTournaments = useCallback((all) => {
   }, [updateTournaments])
 
   const handleJoin = async (tournament) => {
-    try {
-      await api.post(`/tournaments/${tournament._id}/join`)
-      const res = await api.get('/tournaments')
-      updateTournaments(extractTournaments(res.data))
-    } catch (err) {
-      console.log('Join failed:', err.response?.data)
+  const userId = user?.id || user?._id
+  const alreadyJoined = tournament.participants?.some(
+    p => p?._id === userId || p === userId
+  )
+
+  if (alreadyJoined) {
+    navigate(`/tournament/${tournament._id}/waiting`)
+    return
+  }
+
+  try {
+    await api.post(`/tournaments/${tournament._id}/join`)
+    navigate(`/tournament/${tournament._id}/waiting`)
+  } catch (err) {
+    console.log('Join failed:', err.response?.data)
+    if (err.response?.data?.message === 'User already joined this tournament') {
+      navigate(`/tournament/${tournament._id}/waiting`)
     }
   }
+}
 
   const handleOpen = async (tournament) => {
     try {
