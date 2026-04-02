@@ -13,9 +13,9 @@ export function AuthProvider({ children }) {
       return
     }
     api.get('/auth/me')
-      .then(res => setUser(res.data))
-      .catch(() => localStorage.removeItem('token'))
-      .finally(() => setLoading(false))
+    .then(res => setUser(res.data.user))
+    .catch(() => localStorage.removeItem('token'))
+    .finally(() => setLoading(false))
   }, [])
 
   const login = async (email, password) => {
