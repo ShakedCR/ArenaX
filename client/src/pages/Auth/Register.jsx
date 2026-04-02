@@ -9,6 +9,20 @@ const DARK = '#0A0A0F'
 const DARK2 = '#12121A'
 const BEBAS = "'Bebas Neue', sans-serif"
 
+const validate = (form) => {
+  if (form.fullName.trim().length < 2)
+    return 'Full name must be at least 2 characters'
+  if (form.username.trim().length < 3)
+    return 'Username must be at least 3 characters'
+  if (!/^[a-zA-Z0-9_]+$/.test(form.username))
+    return 'Username can only contain letters, numbers and underscores'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+    return 'Invalid email address'
+  if (form.password.length < 8)
+    return 'Password must be at least 8 characters'
+  return null
+}
+
 export default function Register() {
   const navigate = useNavigate()
   const { register } = useAuth()
@@ -18,6 +32,11 @@ export default function Register() {
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
   const handleSubmit = async () => {
+    const validationError = validate(form)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
     try {
       await register(form.fullName, form.username, form.email, form.password)
       navigate('/lobby')
@@ -115,6 +134,7 @@ export default function Register() {
           <img src="https://www.google.com/favicon.ico" width={16} style={{ marginRight: 8 }} />
           Continue with Google
         </Button>
+
         <Typography sx={{ textAlign: 'center', mt: 3, color: '#888', fontSize: 13 }}>
           Already have an account?{' '}
           <span onClick={() => navigate('/login')}
