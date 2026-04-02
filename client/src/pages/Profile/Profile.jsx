@@ -1,5 +1,4 @@
-
-import { Box, CircularProgress, Typography } from '@mui/material'
+import { Box, Button, CircularProgress, InputBase, Typography } from '@mui/material'
 import { useEffect, useState } from 'react'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
@@ -20,9 +19,13 @@ const gameIcons = {
 const GAMES = ['Blackjack', 'Chess', 'Checkers']
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const [tournaments, setTournaments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [editingUsername, setEditingUsername] = useState(false)
+  const [newUsername, setNewUsername] = useState('')
+  const [usernameError, setUsernameError] = useState('')
+  const [usernameLoading, setUsernameLoading] = useState(false)
 
   useEffect(() => {
     api.get('/tournaments')
@@ -52,6 +55,35 @@ export default function Profile() {
       winRate: gameTournaments.length > 0
         ? (gameTournaments.filter(t => t.result?.winner === (user?.id || user?._id)).length / gameTournaments.length * 100).toFixed(0)
         : null
+    }
+  }
+
+  const handleEditUsername = () => {
+    setNewUsername(user?.username || '')
+    setUsernameError('')
+    setEditingUsername(true)
+  }
+
+  const handleSaveUsername = async () => {
+    if (newUsername.trim().length < 3) {
+      setUsernameError('Username must be at least 3 characters')
+      return
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(newUsername)) {
+      setUsernameError('Only letters, numbers and underscores')
+      return
+    }
+    setUsernameLoading(true)
+    try {
+      const userId = user?.id || user?._id
+      const res = await api.put(`/users/${userId}`, { username: newUsername })
+      setUser(res.data.user)
+      setEditingUsername(false)
+      setUsernameError('')
+    } catch {
+      setUsernameError('Username already taken or unavailable')
+    } finally {
+      setUsernameLoading(false)
     }
   }
 
@@ -90,9 +122,58 @@ export default function Profile() {
             <Typography sx={{ fontFamily: BEBAS, fontSize: 28, letterSpacing: 2 }}>
               {user?.fullName || user?.username}
             </Typography>
-            <Typography sx={{ color: '#888', fontSize: 13, mb: 2 }}>
-              @{user?.username}
-            </Typography>
+
+            {editingUsername ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center', mt: 0.5, mb: 1 }}>
+                <Typography sx={{ color: '#666', fontSize: 13 }}>@</Typography>
+                <InputBase
+                  value={newUsername}
+                  onChange={e => setNewUsername(e.target.value)}
+                  autoFocus
+                  sx={{
+                    color: 'white', fontSize: 13,
+                    borderBottom: `1px solid ${GOLD}`,
+                    px: 0.5, minWidth: 120
+                  }}
+                />
+                <Button
+                  onClick={handleSaveUsername}
+                  disabled={usernameLoading}
+                  sx={{ color: GOLD, fontSize: 11, py: 0, minWidth: 'unset' }}>
+                  {usernameLoading ? '...' : 'Save'}
+                </Button>
+                <Button
+                  onClick={() => setEditingUsername(false)}
+                  sx={{ color: '#666', fontSize: 11, py: 0, minWidth: 'unset' }}>
+                  Cancel
+                </Button>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center', mb: 1 }}>
+                <Typography sx={{ color: '#888', fontSize: 13 }}>
+                  @{user?.username}
+                </Typography>
+                <Box
+                  onClick={handleEditUsername}
+                  sx={{
+                    width: 22, height: 22, borderRadius: '50%',
+                    bgcolor: 'rgba(201,168,76,0.1)',
+                    border: '1px solid rgba(201,168,76,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', fontSize: 11,
+                    '&:hover': { bgcolor: 'rgba(201,168,76,0.2)', borderColor: GOLD }
+                  }}>
+                  ✎
+                </Box>
+              </Box>
+            )}
+
+            {usernameError && (
+              <Typography sx={{ color: 'red', fontSize: 12, mb: 1 }}>
+                {usernameError}
+              </Typography>
+            )}
+
             <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
               <Box sx={{
                 bgcolor: 'rgba(201,168,76,0.1)',
@@ -205,10 +286,7 @@ export default function Profile() {
                 <Typography sx={{ color: '#666', fontSize: 12 }}>
                   {new Date(t.createdAt).toLocaleDateString()}
                 </Typography>
-                <Typography sx={{
-                  color: '#888', fontSize: 13,
-                  minWidth: 40, textAlign: 'center'
-                }}>
+                <Typography sx={{ color: '#888', fontSize: 13, minWidth: 40, textAlign: 'center' }}>
                   {t.result?.placement ? `${t.result.placement}st` : '-'}
                 </Typography>
                 <Typography sx={{
@@ -227,5 +305,3 @@ export default function Profile() {
     </Box>
   )
 }
-
-
