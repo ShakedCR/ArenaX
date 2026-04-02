@@ -13,6 +13,7 @@ import Chess from './pages/Game/Chess'
 import Checkers from './pages/Game/Checkers'
 import LandingPage from './pages/Landing/LandingPage'
 import AuthSuccess from './pages/Auth/AuthSuccess'
+import WaitingRoom from './pages/Tournament/WaitingRoom'
 
 const theme = createTheme({
   palette: {
@@ -49,6 +50,7 @@ function App() {
               <Route path="/game/chess/:id" element={<Chess />} />
               <Route path="/game/checkers/:id" element={<Checkers />} />
               <Route path="/auth/success" element={<AuthSuccess />} />
+              <Route path="/tournament/:id/waiting" element={<WaitingRoom />} />
             </Routes>
           </BrowserRouter>
         </Box>
