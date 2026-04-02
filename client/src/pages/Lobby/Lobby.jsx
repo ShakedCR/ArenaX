@@ -17,6 +17,7 @@ export default function Lobby() {
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
   const [tournaments, setTournaments] = useState([])
+  const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,7 +27,25 @@ export default function Lobby() {
       .finally(() => setLoading(false))
   }, [])
 
-  const filtered = tournaments.filter(t =>
+  useEffect(() => {
+    if (user) {
+      api.get(`/tournaments/my`)
+        .then(res => setMyTournaments(Array.isArray(res.data) ? res.data : []))
+        .catch(err => console.log(err))
+    }
+  }, [user])
+
+  const handleJoin = async (tournament) => {
+    try {
+      await api.post(`/tournaments/${tournament._id}/join`)
+      const res = await api.get('/tournaments')
+      setTournaments(Array.isArray(res.data) ? res.data : [])
+    } catch (err) {
+      console.log('Join failed:', err)
+    }
+  }
+
+  const filtered = (tab === 0 ? tournaments : myTournaments).filter(t =>
     filter === 'All' ? true : t.gameType === filter
   )
 
@@ -34,7 +53,7 @@ export default function Lobby() {
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
       <AuthNavbar
         username={user?.username || 'Player'}
-        tokens={user?.tokenBalance || 0}
+        tokens={user?.walletBalance || 0}
         elo={user?.elo?.chess || 1200}
       />
 
@@ -87,9 +106,9 @@ export default function Lobby() {
         ) : (
           filtered.map(t => (
             <TournamentRow
-              key={t.id}
+              key={t._id}
               tournament={t}
-              onJoin={(t) => console.log('Join:', t)}
+              onJoin={handleJoin}
             />
           ))
         )}
