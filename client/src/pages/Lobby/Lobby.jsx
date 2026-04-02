@@ -1,52 +1,81 @@
 import { Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import FilterBar from '../../components/lobby/FilterBar'
 import TournamentRow from '../../components/lobby/TournamentRow'
+import CreateTournamentModal from '../../components/lobby/CreateTournamentModal'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
 const BEBAS = "'Bebas Neue', sans-serif"
 
+const extractTournaments = (data) =>
+  Array.isArray(data?.tournaments) ? data.tournaments : []
+
 export default function Lobby() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
   const [tournaments, setTournaments] = useState([])
   const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
 
+const updateTournaments = useCallback((all) => {
+  setTournaments(all)
+  if (user) {
+    const userId = user.id || user._id
+    const my = all.filter(t =>
+      t.createdBy?._id === userId ||
+      t.createdBy === userId ||
+      t.participants?.some(p => p?._id === userId || p === userId)
+    )
+    setMyTournaments(my)
+  }
+}, [user])
   useEffect(() => {
-    api.get('/tournaments')
-      .then(res => setTournaments(Array.isArray(res.data) ? res.data : []))
-      .catch(err => console.log(err))
-      .finally(() => setLoading(false))
-  }, [])
-
-  useEffect(() => {
-    if (user) {
-      api.get(`/tournaments/my`)
-        .then(res => setMyTournaments(Array.isArray(res.data) ? res.data : []))
-        .catch(err => console.log(err))
+    const fetchTournaments = async () => {
+      try {
+        const res = await api.get('/tournaments')
+        updateTournaments(extractTournaments(res.data))
+      } catch (err) {
+        console.log(err)
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [user])
+    fetchTournaments()
+  }, [updateTournaments])
 
   const handleJoin = async (tournament) => {
     try {
       await api.post(`/tournaments/${tournament._id}/join`)
       const res = await api.get('/tournaments')
-      setTournaments(Array.isArray(res.data) ? res.data : [])
+      updateTournaments(extractTournaments(res.data))
     } catch (err) {
-      console.log('Join failed:', err)
+      console.log('Join failed:', err.response?.data)
     }
   }
 
+  const handleOpen = async (tournament) => {
+    try {
+      await api.patch(`/tournaments/${tournament._id}/open`)
+      const res = await api.get('/tournaments')
+      updateTournaments(extractTournaments(res.data))
+    } catch (err) {
+      console.log('Open failed:', err)
+    }
+  }
+
+  const handleCreated = async () => {
+    const res = await api.get('/tournaments')
+    updateTournaments(extractTournaments(res.data))
+  }
+
   const filtered = (tab === 0 ? tournaments : myTournaments).filter(t =>
-    filter === 'All' ? true : t.gameType === filter
+    filter === 'All' ? true : t.gameTitle === filter
   )
 
   return (
@@ -68,7 +97,7 @@ export default function Lobby() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate('/create-tournament')}
+            onClick={() => setModalOpen(true)}
             sx={{
               bgcolor: GOLD, color: DARK, px: 3, py: 1.2,
               fontWeight: 700, fontSize: 14,
@@ -109,10 +138,17 @@ export default function Lobby() {
               key={t._id}
               tournament={t}
               onJoin={handleJoin}
+              onOpen={handleOpen}
             />
           ))
         )}
       </Box>
+
+      <CreateTournamentModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={handleCreated}
+      />
     </Box>
   )
 }
