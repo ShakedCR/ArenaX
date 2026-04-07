@@ -22,15 +22,20 @@ const router = Router();
 router.get("/", getAllTournaments);
 router.get("/invite/:inviteCode", getTournamentByInviteCode);
 router.get("/:id", getTournamentById);
-router.patch("/:id/regenerate-invite", authMiddleware, regenerateTournamentInviteCode);
 
 /* ================= Protected routes ================= */
 
 router.post("/", authMiddleware, createTournament);
+
 router.post("/:id/join", authMiddleware, joinTournament);
 router.post("/invite/:inviteCode/join", authMiddleware, joinTournamentByInviteCode);
 
 router.get("/:id/invite-link", authMiddleware, getTournamentInviteLink);
+router.patch(
+  "/:id/regenerate-invite",
+  authMiddleware,
+  regenerateTournamentInviteCode
+);
 
 router.put("/:id", authMiddleware, updateTournament);
 router.delete("/:id", authMiddleware, deleteTournament);
