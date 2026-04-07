@@ -31,10 +31,11 @@ const isTournamentCreator = (
   userId: string
 ): boolean => createdBy.toString() === userId;
 
-const isValidObjectId = (id: string): boolean =>
-  Types.ObjectId.isValid(id);
+const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
 
-const shuffleParticipants = (participants: Types.ObjectId[]): Types.ObjectId[] => {
+const shuffleParticipants = (
+  participants: Types.ObjectId[]
+): Types.ObjectId[] => {
   const shuffled = [...participants];
 
   for (let i = shuffled.length - 1; i > 0; i--) {
@@ -61,7 +62,9 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
       maxParticipants,
       startDate,
       endDate,
-      settings
+      settings,
+      isPrivate,
+      privatePassword
     } = req.body;
 
     if (!req.userId) {
@@ -70,6 +73,15 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
 
     if (!title || !gameTitle || !format || !maxParticipants || !startDate) {
       return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    if (
+      isPrivate === true &&
+      (!privatePassword || String(privatePassword).trim() === "")
+    ) {
+      return res.status(400).json({
+        message: "Private tournaments must include a privatePassword"
+      });
     }
 
     const inviteCode = await generateUniqueInviteCode();
@@ -90,7 +102,9 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
       settings,
       createdBy: req.userId,
       participants: [],
-      status: "draft"
+      status: "draft",
+      isPrivate: isPrivate ?? false,
+      privatePassword: isPrivate ? String(privatePassword) : ""
     });
 
     return res.status(201).json({
@@ -105,7 +119,10 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
 
 export const getAllTournaments = async (_req: AuthRequest, res: Response) => {
   try {
-    const tournaments = await Tournament.find()
+    const tournaments = await Tournament.find({
+      isPrivate: { $ne: true }
+    })
+      .select("-privatePassword")
       .populate("createdBy", "fullName username email")
       .sort({ createdAt: -1 });
 
@@ -118,13 +135,14 @@ export const getAllTournaments = async (_req: AuthRequest, res: Response) => {
 
 export const getTournamentById = async (req: AuthRequest, res: Response) => {
   try {
-    const  id  = req.params.id as string;
+    const id = req.params.id as string;
 
     if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "Invalid tournament ID" });
     }
 
     const tournament = await Tournament.findById(id)
+      .select("-privatePassword")
       .populate("createdBy", "fullName username email")
       .populate("participants", "fullName username email avatarUrl");
 
@@ -160,6 +178,12 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
     if (!tournament) {
       return res.status(404).json({
         message: "Tournament not found"
+      });
+    }
+
+    if (tournament.isPrivate) {
+      return res.status(403).json({
+        message: "This tournament is private. Use invite link and password to join."
       });
     }
 
@@ -236,9 +260,15 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
 
 export const updateTournament = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
 
     const tournament = await Tournament.findById(id);
 
@@ -263,20 +293,43 @@ export const updateTournament = async (req: AuthRequest, res: Response) => {
       "startDate",
       "endDate",
       "settings",
-      "status"
+      "status",
+      "isPrivate"
     ];
 
-    allowedFields.forEach(field => {
+    allowedFields.forEach((field) => {
       if (req.body[field] !== undefined) {
         (tournament as any)[field] = req.body[field];
       }
     });
 
+    if (req.body.isPrivate === true) {
+      if (
+        req.body.privatePassword !== undefined &&
+        String(req.body.privatePassword).trim() !== ""
+      ) {
+        tournament.privatePassword = String(req.body.privatePassword);
+      } else if (!tournament.privatePassword) {
+        return res.status(400).json({
+          message: "Private tournaments must include a privatePassword"
+        });
+      }
+    }
+
+    if (req.body.isPrivate === false) {
+      tournament.privatePassword = "";
+    }
+
     await tournament.save();
+
+    const safeTournament = await Tournament.findById(id)
+      .select("-privatePassword")
+      .populate("createdBy", "fullName username email")
+      .populate("participants", "fullName username email avatarUrl");
 
     return res.status(200).json({
       message: "Tournament updated",
-      tournament
+      tournament: safeTournament
     });
   } catch (error) {
     console.error("Update error:", error);
@@ -286,9 +339,15 @@ export const updateTournament = async (req: AuthRequest, res: Response) => {
 
 export const deleteTournament = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
 
     const tournament = await Tournament.findById(id);
 
@@ -311,9 +370,15 @@ export const deleteTournament = async (req: AuthRequest, res: Response) => {
 
 export const openTournament = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
 
     const tournament = await Tournament.findById(id);
 
@@ -326,7 +391,9 @@ export const openTournament = async (req: AuthRequest, res: Response) => {
     }
 
     if (tournament.status !== "draft") {
-      return res.status(400).json({ message: "Only draft tournaments can be opened" });
+      return res.status(400).json({
+        message: "Only draft tournaments can be opened"
+      });
     }
 
     tournament.status = "open";
@@ -344,13 +411,21 @@ export const openTournament = async (req: AuthRequest, res: Response) => {
 
 export const startTournament = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
 
     const tournament = await Tournament.findById(id);
 
-    if (!tournament) return res.status(404).json({ message: "Not found" });
+    if (!tournament) {
+      return res.status(404).json({ message: "Not found" });
+    }
 
     if (!isTournamentCreator(tournament.createdBy, req.userId)) {
       return res.status(403).json({ message: "Forbidden" });
@@ -377,6 +452,7 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
       if (!p2) {
         matches.push({
           tournament: tournament._id,
+          gameTitle: tournament.gameTitle,
           round: 1,
           participants: [p1],
           status: "completed",
@@ -388,6 +464,7 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
       } else {
         matches.push({
           tournament: tournament._id,
+          gameTitle: tournament.gameTitle,
           round: 1,
           participants: [p1, p2],
           status: "scheduled"
@@ -412,15 +489,26 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
 
 /* ================= Invite ================= */
 
-export const getTournamentInviteLink = async (req: AuthRequest, res: Response) => {
+export const getTournamentInviteLink = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
 
-    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
 
     const tournament = await Tournament.findById(id);
 
-    if (!tournament) return res.status(404).json({ message: "Not found" });
+    if (!tournament) {
+      return res.status(404).json({ message: "Not found" });
+    }
 
     if (!isTournamentCreator(tournament.createdBy, req.userId)) {
       return res.status(403).json({ message: "Forbidden" });
@@ -433,16 +521,20 @@ export const getTournamentInviteLink = async (req: AuthRequest, res: Response) =
       inviteLink: `${clientUrl}/tournaments/join/${tournament.inviteCode}`
     });
   } catch (error) {
-    console.error(error);
+    console.error("Get tournament invite link error:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
 
-export const getTournamentByInviteCode = async (req: AuthRequest, res: Response) => {
+export const getTournamentByInviteCode = async (
+  req: AuthRequest,
+  res: Response
+) => {
   try {
-    const { inviteCode } = req.params;
+    const inviteCode = req.params.inviteCode as string;
 
     const tournament = await Tournament.findOne({ inviteCode })
+      .select("-privatePassword")
       .populate("createdBy", "fullName username email")
       .populate("participants", "fullName username email avatarUrl");
 
@@ -452,7 +544,7 @@ export const getTournamentByInviteCode = async (req: AuthRequest, res: Response)
 
     return res.json({ tournament });
   } catch (error) {
-    console.error(error);
+    console.error("Get tournament by invite code error:", error);
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -463,6 +555,7 @@ export const joinTournamentByInviteCode = async (
 ) => {
   try {
     const inviteCode = req.params.inviteCode as string;
+    const { privatePassword } = req.body;
 
     if (!req.userId) {
       return res.status(401).json({
@@ -482,6 +575,14 @@ export const joinTournamentByInviteCode = async (
       return res.status(400).json({
         message: "Tournament is not open for registration"
       });
+    }
+
+    if (tournament.isPrivate) {
+      if (!privatePassword || privatePassword !== tournament.privatePassword) {
+        return res.status(403).json({
+          message: "Invalid private tournament password"
+        });
+      }
     }
 
     const userObjectId = new Types.ObjectId(req.userId);
