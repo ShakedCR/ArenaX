@@ -133,6 +133,37 @@ export const getAllTournaments = async (_req: AuthRequest, res: Response) => {
   }
 };
 
+
+export const getMyTournaments = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const tournaments = await Tournament.find({
+      $or: [
+        { createdBy: req.userId },
+        { participants: new Types.ObjectId(req.userId) }
+      ]
+    })
+      .populate("createdBy", "fullName username email")
+      .populate("participants", "fullName username email avatarUrl")
+      .sort({ createdAt: -1 });
+
+    const safeTournaments = tournaments.map(t => {
+      const obj = t.toObject() as any
+      if (t.createdBy?._id?.toString() !== req.userId) {
+        delete obj.privatePassword
+      }
+      return obj
+    })
+
+    return res.status(200).json({ tournaments: safeTournaments });
+  } catch (error) {
+    console.error("Get my tournaments error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 export const getTournamentById = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
