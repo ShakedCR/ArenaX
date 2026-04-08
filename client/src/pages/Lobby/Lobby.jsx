@@ -25,68 +25,58 @@ export default function Lobby() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
-  const updateTournaments = useCallback((all) => {
-    setTournaments(all)
-    if (user) {
-      const userId = user.id || user._id
-      const my = all.filter(t =>
-        t.createdBy?._id === userId ||
-        t.createdBy === userId ||
-        t.participants?.some(p => p?._id === userId || p === userId)
-      )
-      setMyTournaments(my)
+  const fetchTournaments = useCallback(async () => {
+    try {
+      const [allRes, myRes] = await Promise.all([
+        api.get('/tournaments'),
+        api.get('/tournaments/my')
+      ])
+      setTournaments(extractTournaments(allRes.data))
+      setMyTournaments(extractTournaments(myRes.data))
+    } catch (err) {
+      console.log(err)
+    } finally {
+      setLoading(false)
     }
-  }, [user])
+  }, [])
 
   useEffect(() => {
-    const fetchTournaments = async () => {
-      try {
-        const res = await api.get('/tournaments')
-        updateTournaments(extractTournaments(res.data))
-      } catch (err) {
-        console.log(err)
-      } finally {
-        setLoading(false)
-      }
-    }
     fetchTournaments()
-  }, [updateTournaments])
+  }, [fetchTournaments])
 
   const handleJoin = async (tournament) => {
-  const userId = user?.id || user?._id
-  const alreadyJoined = tournament.participants?.some(
-    p => p?._id === userId || p === userId
-  )
+    const userId = user?.id || user?._id
+    const alreadyJoined = tournament.participants?.some(
+      p => p?._id === userId || p === userId
+    )
 
-  if (alreadyJoined) {
-    navigate(`/tournament/${tournament._id}/waiting`)
-    return
-  }
-
-  try {
-    await api.post(`/tournaments/${tournament._id}/join`)
-    navigate(`/tournament/${tournament._id}/waiting`)
-  } catch (err) {
-    console.log('Join failed:', err.response?.data)
-    if (err.response?.data?.message === 'User already joined this tournament') {
+    if (alreadyJoined) {
       navigate(`/tournament/${tournament._id}/waiting`)
+      return
+    }
+
+    try {
+      await api.post(`/tournaments/${tournament._id}/join`)
+      navigate(`/tournament/${tournament._id}/waiting`)
+    } catch (err) {
+      console.log('Join failed:', err.response?.data)
+      if (err.response?.data?.message === 'User already joined this tournament') {
+        navigate(`/tournament/${tournament._id}/waiting`)
+      }
     }
   }
-}
 
   const handleOpen = async (tournament) => {
     try {
       await api.patch(`/tournaments/${tournament._id}/open`)
-      const res = await api.get('/tournaments')
-      updateTournaments(extractTournaments(res.data))
+      await fetchTournaments()
     } catch (err) {
       console.log('Open failed:', err)
     }
   }
 
   const handleCreated = async () => {
-    const res = await api.get('/tournaments')
-    updateTournaments(extractTournaments(res.data))
+    await fetchTournaments()
   }
 
   const filtered = (tab === 0 ? tournaments : myTournaments).filter(t =>
