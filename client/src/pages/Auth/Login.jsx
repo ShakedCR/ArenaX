@@ -1,6 +1,6 @@
 import { Box, Button, Divider, Typography } from '@mui/material'
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import AuthInput from '../../components/common/AuthInput'
 import { useAuth } from '../../contexts/useAuth'
 
@@ -11,20 +11,23 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
- const handleSubmit = async () => {
-  try {
-    await login(form.email, form.password)
-    navigate('/lobby')
-  } catch {
-    setError('Login failed. Please check your credentials.')
+  const handleSubmit = async () => {
+    try {
+      await login(form.email, form.password)
+      const params = new URLSearchParams(location.search)
+      const redirect = params.get('redirect')
+      navigate(redirect || '/lobby')
+    } catch {
+      setError('Login failed. Please check your credentials.')
+    }
   }
-}
 
   return (
     <Box sx={{
@@ -103,6 +106,7 @@ export default function Login() {
           <img src="https://www.google.com/favicon.ico" width={16} style={{ marginRight: 8 }} />
           Continue with Google
         </Button>
+
         <Typography sx={{ textAlign: 'center', mt: 3, color: '#888', fontSize: 13 }}>
           Don't have an account?{' '}
           <span onClick={() => navigate('/register')}
