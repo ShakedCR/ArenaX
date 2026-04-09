@@ -32,6 +32,8 @@ export interface ITournament extends Document {
   platform?: string;
   format: TournamentFormat;
   status: TournamentStatus;
+  isPrivate: boolean;
+  privatePassword?: string;
   entryFee: number;
   prizePool: number;
   maxParticipants: number;
@@ -91,6 +93,14 @@ const tournamentSchema = new Schema<ITournament>(
       enum: ["draft", "open", "ongoing", "completed", "cancelled"],
       default: "draft"
     },
+    isPrivate: {
+      type: Boolean,
+      default: false
+    },
+    privatePassword: {
+      type: String,
+      default: ""
+    },
     entryFee: {
       type: Number,
       default: 0,
@@ -145,6 +155,7 @@ const tournamentSchema = new Schema<ITournament>(
 tournamentSchema.index({ gameTitle: 1, status: 1 });
 tournamentSchema.index({ createdBy: 1 });
 tournamentSchema.index({ inviteCode: 1 }, { unique: true });
+tournamentSchema.index({ isPrivate: 1 });
 
 const Tournament = model<ITournament>("Tournament", tournamentSchema);
 

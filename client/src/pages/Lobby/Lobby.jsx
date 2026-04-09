@@ -1,40 +1,93 @@
 import { Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import FilterBar from '../../components/lobby/FilterBar'
 import TournamentRow from '../../components/lobby/TournamentRow'
+import CreateTournamentModal from '../../components/lobby/CreateTournamentModal'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
 const BEBAS = "'Bebas Neue', sans-serif"
 
+const extractTournaments = (data) =>
+  Array.isArray(data?.tournaments) ? data.tournaments : []
+
 export default function Lobby() {
-  const navigate = useNavigate()
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
   const [tournaments, setTournaments] = useState([])
+  const [myTournaments, setMyTournaments] = useState([])
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
 
-  useEffect(() => {
-    api.get('/tournaments')
-      .then(res => setTournaments(Array.isArray(res.data) ? res.data : []))
-      .catch(err => console.log(err))
-      .finally(() => setLoading(false))
+  const fetchTournaments = useCallback(async () => {
+    try {
+      const [allRes, myRes] = await Promise.all([
+        api.get('/tournaments'),
+        api.get('/tournaments/my')
+      ])
+      setTournaments(extractTournaments(allRes.data))
+      setMyTournaments(extractTournaments(myRes.data))
+    } catch (err) {
+      console.log(err)
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  const filtered = tournaments.filter(t =>
-    filter === 'All' ? true : t.gameType === filter
+  useEffect(() => {
+    fetchTournaments()
+  }, [fetchTournaments])
+
+  const handleJoin = async (tournament) => {
+    const userId = user?.id || user?._id
+    const alreadyJoined = tournament.participants?.some(
+      p => p?._id === userId || p === userId
+    )
+
+    if (alreadyJoined) {
+      navigate(`/tournament/${tournament._id}/waiting`)
+      return
+    }
+
+    try {
+      await api.post(`/tournaments/${tournament._id}/join`)
+      navigate(`/tournament/${tournament._id}/waiting`)
+    } catch (err) {
+      console.log('Join failed:', err.response?.data)
+      if (err.response?.data?.message === 'User already joined this tournament') {
+        navigate(`/tournament/${tournament._id}/waiting`)
+      }
+    }
+  }
+
+  const handleOpen = async (tournament) => {
+    try {
+      await api.patch(`/tournaments/${tournament._id}/open`)
+      await fetchTournaments()
+    } catch (err) {
+      console.log('Open failed:', err)
+    }
+  }
+
+  const handleCreated = async () => {
+    await fetchTournaments()
+  }
+
+  const filtered = (tab === 0 ? tournaments : myTournaments).filter(t =>
+    filter === 'All' ? true : t.gameTitle === filter
   )
 
   return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
       <AuthNavbar
         username={user?.username || 'Player'}
-        tokens={user?.tokenBalance || 0}
+        tokens={user?.walletBalance || 0}
         elo={user?.elo?.chess || 1200}
       />
 
@@ -49,7 +102,7 @@ export default function Lobby() {
             </Typography>
           </Box>
           <Button
-            onClick={() => navigate('/create-tournament')}
+            onClick={() => setModalOpen(true)}
             sx={{
               bgcolor: GOLD, color: DARK, px: 3, py: 1.2,
               fontWeight: 700, fontSize: 14,
@@ -87,13 +140,20 @@ export default function Lobby() {
         ) : (
           filtered.map(t => (
             <TournamentRow
-              key={t.id}
+              key={t._id}
               tournament={t}
-              onJoin={(t) => console.log('Join:', t)}
+              onJoin={handleJoin}
+              onOpen={handleOpen}
             />
           ))
         )}
       </Box>
+
+      <CreateTournamentModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={handleCreated}
+      />
     </Box>
   )
 }

@@ -1,11 +1,12 @@
 import { Box, Button, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/useAuth'
 
 const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
 
 export default function AuthNavbar({ username = 'Player', tokens = 0, elo = 1200 }) {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   return (
     <Box sx={{
@@ -40,7 +41,10 @@ export default function AuthNavbar({ username = 'Player', tokens = 0, elo = 1200
           Elo: <span style={{ color: GOLD }}>{elo}</span>
         </Typography>
         <Button
-          onClick={() => navigate('/logout')}
+          onClick={() => {
+            logout()
+            navigate('/')
+          }}
           sx={{ color: '#aaa', border: '1px solid rgba(255,255,255,0.1)',
             px: 2, fontSize: 12, '&:hover': { borderColor: 'white', color: 'white' } }}>
           Logout

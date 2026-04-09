@@ -3,10 +3,10 @@ POST http://localhost:3000/api/auth/register
 Content-Type: application/json
 
 {
-  "fullName": "Ofek Test",
-  "username": "ofektest1",
-  "email": "ofek1@test.com",
-  "password": "123456"
+  "fullName": "Ofek1 Test1",
+  "username": "ofek11",
+  "email": "ofek11@test.com",
+  "password": "12345678"
 }
 
 ###
@@ -44,7 +44,7 @@ Content-Type: application/json
 
 ###
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
-@tournamentId = 69cba9bed8fdd4f285036b1e
+@tournamentId = 69cbf648c3613387dea5cefc
 @matchId = 69cbaa52d8fdd4f285036b2f
 @winnerId = 69cba53d66c848a75a5ba46f
 
@@ -134,7 +134,7 @@ Authorization: Bearer {{token}}
 @baseUrl = http://localhost:3000
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
 @otherUserToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiYTUzZDY2Yzg0OGE3NWE1YmE0NmYiLCJpYXQiOjE3NzQ5NjM2MzksImV4cCI6MTc3NTU2ODQzOX0.6DrLjEI9N8AkOCb1tt_aFx0xxFYbL8DkpYZuXUdCz4Q
-@tournamentId = 69cbcbe495b8b605a52e775f
+@tournamentId = 69cbf66ac3613387dea5cf02
 @inviteCode = 3RPSUDJS6G
 
 ### 1. Create tournament
@@ -243,3 +243,136 @@ GET http://localhost:3000/api/tournaments/invite/{{newInviteCode}}
 ### Join tournament with new invite code
 POST http://localhost:3000/api/tournaments/invite/{{newInviteCode}}/join
 Authorization: Bearer {{otherUserToken}}
+
+@userId = 69cb9d89cf1d7a70b546d5c3
+
+### Get current user
+GET {{baseUrl}}/api/users/me
+Authorization: Bearer {{token}}
+
+###
+
+### Get all users
+GET {{baseUrl}}/api/users
+
+###
+
+### Get user by ID
+GET {{baseUrl}}/api/users/{{userId}}
+
+###
+
+### Update user
+PUT {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "fullName": "Ofek Updated",
+  "username": "ofek_updated",
+  "avatarUrl": "https://example.com/avatar.png",
+  "games": ["CS2", "EA FC 26", "Chess"]
+}
+
+###
+
+### Get user tournaments
+GET {{baseUrl}}/api/users/{{userId}}/tournaments
+
+###
+
+### Get user matches
+GET {{baseUrl}}/api/users/{{userId}}/matches
+
+###
+
+### Get user stats
+GET {{baseUrl}}/api/users/{{userId}}/stats
+
+###
+
+### Delete user
+DELETE {{baseUrl}}/api/users/{{userId}}
+Authorization: Bearer {{token}}
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
+@transactionId = YOUR_TRANSACTION_ID_HERE
+
+### Get my wallet
+GET {{baseUrl}}/api/wallet/me
+Authorization: Bearer {{token}}
+
+###
+
+### Deposit to wallet
+POST {{baseUrl}}/api/wallet/deposit
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 150,
+  "description": "Initial top up"
+}
+
+###
+
+### Withdraw from wallet
+POST {{baseUrl}}/api/wallet/withdraw
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "amount": 50,
+  "description": "Test withdrawal"
+}
+
+###
+
+### Get my transactions
+GET {{baseUrl}}/api/transactions/me
+Authorization: Bearer {{token}}
+
+###
+
+### Get transaction by ID
+GET {{baseUrl}}/api/transactions/{{transactionId}}
+Authorization: Bearer {{token}}
+
+
+@creatorToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
+### Create paid tournament
+POST http://localhost:3000/api/tournaments
+Authorization: Bearer {{creatorToken}}
+Content-Type: application/json
+
+{
+  "title": "Paid ArenaX Cup1",
+  "description": "Tournament with entry fee",
+  "gameTitle": "EA FC 26",
+  "gameMode": "1v1",
+  "platform": "PS5",
+  "format": "single_elimination",
+  "entryFee": 500,
+  "prizePool": 0,
+  "maxParticipants": 8,
+  "startDate": "2026-04-10T18:00:00.000Z"
+}
+
+### Open paid tournament
+PATCH http://localhost:3000/api/tournaments/{{tournamentId}}/open
+Authorization: Bearer {{creatorToken}}
+
+### Join paid tournament
+POST http://localhost:3000/api/tournaments/{{tournamentId}}/join
+Authorization: Bearer {{token}}
+
+### Get my wallet
+GET http://localhost:3000/api/wallet/me
+Authorization: Bearer {{token}}
+
+### Get my transactions
+GET http://localhost:3000/api/transactions/me
+Authorization: Bearer {{token}}
+
+### Get tournament by ID
+GET http://localhost:3000/api/tournaments/{{tournamentId}}
