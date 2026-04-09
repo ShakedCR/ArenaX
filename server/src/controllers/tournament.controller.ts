@@ -5,6 +5,9 @@ import Match from "../models/match.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
+import { blackjackEngine } from "../games/blackjack.engine";
+import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import { getIO } from "../socket";
 
 /* ================= Helpers ================= */
 
@@ -507,6 +510,70 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
 
     tournament.status = "ongoing";
     await tournament.save();
+
+    // ── KAN-47: Bridge tournament start → game start ───────────────────────────
+    // For every 2-player Blackjack match, create a game in the engine,
+    // start round 1, persist state, and notify players via Socket.io.
+    // The match's _id is used as the gameId so they're inherently linked.
+    if (tournament.gameTitle === "Blackjack") {
+      for (const match of createdMatches) {
+        if (match.participants.length < 2) continue; // BYE — skip
+
+        const gameId = (match._id as Types.ObjectId).toString();
+        const playerIds = match.participants.map((p) => p.toString());
+
+        // Resolve player names from DB for the engine
+        const users = await User.find({ _id: { $in: playerIds } })
+          .select("_id username fullName")
+          .lean() as { _id: Types.ObjectId; username?: string; fullName?: string }[];
+
+        const players = playerIds.map((pid) => {
+          const u = users.find((u) => u._id.toString() === pid);
+          return { id: pid, name: u?.username || u?.fullName || pid };
+        });
+
+        // Initialize the game in the engine and deal round 1
+        blackjackEngine.createGame(gameId, players);
+        const state = blackjackEngine.startRound(gameId);
+
+        // Persist to MongoDB so reconnecting players can restore their state
+        await BlackjackGameStateModel.findOneAndUpdate(
+          { gameId },
+          {
+            $set: {
+              status: "active",
+              stateSnapshot: state,
+              leaderboard: blackjackEngine.getLeaderboard(gameId),
+              lastAction: "start"
+            }
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        // Store gameId in the Match document so the bracket UI can navigate to it
+        await Match.findByIdAndUpdate(match._id, {
+          "matchData.gameId": gameId,
+          status: "live",
+          startedAt: new Date()
+        });
+
+        // Notify all players already in the game room (joined via player:join)
+        // that the game has started — includes initial cards from round 1
+        getIO().to(`game:${gameId}`).emit("blackjack:game-start", {
+          gameId,
+          players: state.players,
+          round: state.currentRound,
+          totalRounds: state.totalRounds,
+          dealerCards: state.dealerCards,
+          playerStates: state.playerStates.map((ps) => ({
+            id: ps.playerId,
+            cards: ps.currentHand?.cards ?? [],
+            bet: ps.currentHand?.bet ?? 0,
+            tokens: ps.tokens
+          }))
+        });
+      }
+    }
 
     return res.json({
       message: "Tournament started",
