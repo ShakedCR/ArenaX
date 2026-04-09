@@ -45,6 +45,15 @@ interface PersistedGameState {
 const userCurrentGameRoom = new Map<string, string>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
 
+// ── Shared io accessor ────────────────────────────────────────────────────────
+// Controllers that need to emit socket events (e.g. startTournament emitting
+// blackjack:game-start) import getIO() instead of receiving io as a parameter.
+let _io: Server;
+export const getIO = (): Server => {
+  if (!_io) throw new Error("Socket.io server not initialized yet");
+  return _io;
+};
+
 const reconnectKey = (gameId: string, userId: string): string => `${gameId}:${userId}`;
 const gameRoomName = (gameId: string): string => `game:${gameId}`;
 
@@ -76,20 +85,22 @@ const getPersistedGameState = async (gameId: string): Promise<PersistedGameState
  */
 
 export function initSocketServer(httpServer: http.Server): Server {
-  const io = new Server(httpServer, {
+  _io = new Server(httpServer, {
     cors: {
       origin: process.env.CLIENT_URL || "http://localhost:5173",
       credentials: true
     }
   });
+  const io = _io;
 
   // Auth middleware — validates JWT token sent in socket handshake
   io.use((socket, next) => {
     const token = socket.handshake.auth?.token;
     if (!token) return next(new Error("Unauthorized"));
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { id: string };
-      socket.data.userId = decoded.id;
+      // JWT is signed with { userId } — must match the key used in auth.controller.ts
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: string };
+      socket.data.userId = decoded.userId;
       next();
     } catch {
       next(new Error("Invalid token"));

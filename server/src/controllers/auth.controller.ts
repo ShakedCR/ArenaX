@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import User from "../models/user.model";
+import Transaction from "../models/transaction.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 
 const generateToken = (userId: string): string => {
@@ -61,6 +62,19 @@ export const register = async (req: Request, res: Response) => {
       username,
       email,
       password: hashedPassword
+    });
+
+    // KAN-21: Grant 1000 tokens to every new user on registration
+    user.walletBalance = 1000;
+    await user.save();
+
+    // Record the registration bonus as a deposit transaction
+    await Transaction.create({
+      user: user._id,
+      amount: 1000,
+      type: "deposit",
+      status: "completed",
+      description: "Registration bonus"
     });
 
     const token = generateToken(user._id.toString());
