@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import express, { Request, Response } from "express";
 import cors from "cors";
 import morgan from "morgan";
@@ -7,6 +9,7 @@ import healthRoutes from "./routes/health.routes";
 import authRoutes from "./routes/auth.routes";
 import tournamentRoutes from "./routes/tournament.routes";
 import matchRoutes from "./routes/match.routes";
+import gamesRoutes from "./routes/games.routes";
 import userRoutes from "./routes/user.routes";
 import walletRoutes from "./routes/wallet.routes";
 import transactionRoutes from "./routes/transaction.routes";
@@ -42,6 +45,7 @@ app.use("/health", healthRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/matches", matchRoutes);
+app.use("/api/games", gamesRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/transactions", transactionRoutes);
