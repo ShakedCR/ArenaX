@@ -3,6 +3,25 @@ import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 
+const buildWalletResponse = (user: any) => ({
+  userId: user._id,
+  fullName: user.fullName,
+  username: user.username,
+  email: user.email,
+  walletBalance: user.walletBalance
+});
+
+const normalizeDescription = (
+  description: unknown,
+  fallback: string
+): string => {
+  if (typeof description === "string" && description.trim() !== "") {
+    return description.trim();
+  }
+
+  return fallback;
+};
+
 export const getMyWallet = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) {
@@ -22,13 +41,7 @@ export const getMyWallet = async (req: AuthRequest, res: Response) => {
     }
 
     return res.status(200).json({
-      wallet: {
-        userId: user._id,
-        fullName: user.fullName,
-        username: user.username,
-        email: user.email,
-        walletBalance: user.walletBalance
-      }
+      wallet: buildWalletResponse(user)
     });
   } catch (error) {
     console.error("Get wallet error:", error);
@@ -49,7 +62,7 @@ export const depositToWallet = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (typeof amount !== "number" || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
         message: "Amount must be a positive number"
       });
@@ -71,12 +84,12 @@ export const depositToWallet = async (req: AuthRequest, res: Response) => {
       amount,
       type: "deposit",
       status: "completed",
-      description: description || "Wallet deposit"
+      description: normalizeDescription(description, "Wallet deposit")
     });
 
     return res.status(200).json({
       message: "Deposit completed successfully",
-      walletBalance: user.walletBalance,
+      wallet: buildWalletResponse(user),
       transaction
     });
   } catch (error) {
@@ -98,7 +111,7 @@ export const withdrawFromWallet = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (typeof amount !== "number" || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({
         message: "Amount must be a positive number"
       });
@@ -126,12 +139,12 @@ export const withdrawFromWallet = async (req: AuthRequest, res: Response) => {
       amount,
       type: "withdrawal",
       status: "completed",
-      description: description || "Wallet withdrawal"
+      description: normalizeDescription(description, "Wallet withdrawal")
     });
 
     return res.status(200).json({
       message: "Withdrawal completed successfully",
-      walletBalance: user.walletBalance,
+      wallet: buildWalletResponse(user),
       transaction
     });
   } catch (error) {

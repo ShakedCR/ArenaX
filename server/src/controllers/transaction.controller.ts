@@ -14,10 +14,11 @@ export const getMyTransactions = async (req: AuthRequest, res: Response) => {
     }
 
     const transactions = await Transaction.find({
-      user: req.userId
+      user: new Types.ObjectId(req.userId)
     })
       .populate("tournament", "title gameTitle status")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       transactions
@@ -47,10 +48,8 @@ export const getTransactionById = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const transaction = await Transaction.findById(id).populate(
-      "tournament",
-      "title gameTitle status"
-    );
+    const transaction = await Transaction.findById(id)
+      .populate("tournament", "title gameTitle status");
 
     if (!transaction) {
       return res.status(404).json({
