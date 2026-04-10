@@ -5,6 +5,9 @@ import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 
+const WELCOME_BONUS_AMOUNT = 1000;
+const WELCOME_BONUS_DESCRIPTION = "Welcome bonus";
+
 const generateToken = (userId: string): string => {
   const secret = process.env.JWT_SECRET;
 
@@ -61,20 +64,16 @@ export const register = async (req: Request, res: Response) => {
       fullName,
       username,
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      walletBalance: WELCOME_BONUS_AMOUNT
     });
 
-    // KAN-21: Grant 1000 tokens to every new user on registration
-    user.walletBalance = 1000;
-    await user.save();
-
-    // Record the registration bonus as a deposit transaction
     await Transaction.create({
       user: user._id,
-      amount: 1000,
+      amount: WELCOME_BONUS_AMOUNT,
       type: "deposit",
       status: "completed",
-      description: "Registration bonus"
+      description: WELCOME_BONUS_DESCRIPTION
     });
 
     const token = generateToken(user._id.toString());

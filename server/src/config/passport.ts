@@ -1,6 +1,10 @@
 import passport from "passport";
 import { Strategy as GoogleStrategy, Profile } from "passport-google-oauth20";
 import User from "../models/user.model";
+import Transaction from "../models/transaction.model";
+
+const WELCOME_BONUS_AMOUNT = 1000;
+const WELCOME_BONUS_DESCRIPTION = "Welcome bonus";
 
 passport.use(
   new GoogleStrategy(
@@ -30,7 +34,7 @@ passport.use(
         });
 
         if (!user) {
-          const generatedUsername = email.split("@")[0] + "_" + Date.now();
+          const generatedUsername = `${email.split("@")[0]}_${Date.now()}`;
 
           user = await User.create({
             fullName,
@@ -38,7 +42,16 @@ passport.use(
             email,
             googleId,
             avatarUrl,
-            password: undefined
+            password: undefined,
+            walletBalance: WELCOME_BONUS_AMOUNT
+          });
+
+          await Transaction.create({
+            user: user._id,
+            amount: WELCOME_BONUS_AMOUNT,
+            type: "deposit",
+            status: "completed",
+            description: WELCOME_BONUS_DESCRIPTION
           });
         } else {
           if (!user.googleId) {
