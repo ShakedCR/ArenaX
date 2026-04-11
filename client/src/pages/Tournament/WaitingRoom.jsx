@@ -28,7 +28,13 @@ export default function WaitingRoom() {
 
   const userId = user?.id || user?._id
 
-  const findAndNavigateToMatch = (matches) => {
+  const gameRoutes = {
+    Blackjack: 'blackjack',
+    Chess: 'chess',
+    Checkers: 'checkers',
+  }
+
+  const findAndNavigateToMatch = (matches, gameTitle) => {
     const myMatch = matches.find(m =>
       m.participants?.some(p => {
         const pid = p._id || p
@@ -36,7 +42,8 @@ export default function WaitingRoom() {
       })
     )
     if (myMatch) {
-      navigate(`/game/blackjack/${myMatch._id}`)
+      const route = gameRoutes[gameTitle] || 'blackjack'
+      navigate(`/game/${route}/${myMatch._id}`)
     }
   }
 
@@ -50,7 +57,7 @@ export default function WaitingRoom() {
         if (t.status === 'ongoing' && !redirecting && userId) {
           setRedirecting(true)
           const matchRes = await api.get(`/matches/tournament/${id}`)
-          findAndNavigateToMatch(matchRes.data.matches || [])
+          findAndNavigateToMatch(matchRes.data.matches || [], t.gameTitle)
         }
       } catch {
         setError('Tournament not found')
@@ -68,7 +75,7 @@ export default function WaitingRoom() {
     setStarting(true)
     try {
       const res = await api.patch(`/tournaments/${id}/start`)
-      findAndNavigateToMatch(res.data.matches || [])
+      findAndNavigateToMatch(res.data.matches || [], tournament?.gameTitle)
     } catch {
       setError('Failed to start tournament')
     } finally {
