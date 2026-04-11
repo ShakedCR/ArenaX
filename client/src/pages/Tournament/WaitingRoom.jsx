@@ -24,12 +24,34 @@ export default function WaitingRoom() {
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
+  const [redirecting, setRedirecting] = useState(false)
+
+  const userId = user?.id || user?._id
+
+  const findAndNavigateToMatch = (matches) => {
+    const myMatch = matches.find(m =>
+      m.participants?.some(p => {
+        const pid = p._id || p
+        return pid?.toString() === userId?.toString()
+      })
+    )
+    if (myMatch) {
+      navigate(`/game/blackjack/${myMatch._id}`)
+    }
+  }
 
   useEffect(() => {
     const fetchTournament = async () => {
       try {
         const res = await api.get(`/tournaments/${id}`)
-        setTournament(res.data.tournament)
+        const t = res.data.tournament
+        setTournament(t)
+
+        if (t.status === 'ongoing' && !redirecting && userId) {
+          setRedirecting(true)
+          const matchRes = await api.get(`/matches/tournament/${id}`)
+          findAndNavigateToMatch(matchRes.data.matches || [])
+        }
       } catch {
         setError('Tournament not found')
       } finally {
@@ -40,13 +62,13 @@ export default function WaitingRoom() {
 
     const interval = setInterval(fetchTournament, 5000)
     return () => clearInterval(interval)
-  }, [id])
+  }, [id, userId])
 
   const handleStart = async () => {
     setStarting(true)
     try {
-      await api.patch(`/tournaments/${id}/start`)
-      navigate(`/tournament/${id}/bracket`)
+      const res = await api.patch(`/tournaments/${id}/start`)
+      findAndNavigateToMatch(res.data.matches || [])
     } catch {
       setError('Failed to start tournament')
     } finally {
@@ -54,7 +76,6 @@ export default function WaitingRoom() {
     }
   }
 
-  const userId = user?.id || user?._id
   const creatorId = tournament?.createdBy?._id || tournament?.createdBy?.id || tournament?.createdBy
 
   const isCreator = userId && creatorId && userId.toString() === creatorId.toString()
