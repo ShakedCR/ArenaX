@@ -22,8 +22,8 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
   const [form, setForm] = useState({
     title: '',
     gameTitle: '',
-    entryFee: 50,
-    maxParticipants: 8,
+    entryFee: 0,
+    maxParticipants: 2,
     type: 'open',
     privatePassword: ''
   })
@@ -31,11 +31,24 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
   const [loading, setLoading] = useState(false)
   const [inviteLink, setInviteLink] = useState(null)
 
-  const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const isBlackjack = form.gameTitle === 'Blackjack'
+  const maxAllowed = isBlackjack ? 6 : 12
+
+  const handleChange = (field) => (e) => {
+    let value = e.target.value
+    if (field === 'maxParticipants') {
+      value = Math.min(Number(value), maxAllowed)
+    }
+    if (field === 'gameTitle' && value === 'Blackjack') {
+      setForm({ ...form, gameTitle: value, maxParticipants: Math.min(Number(form.maxParticipants), 6) })
+      return
+    }
+    setForm({ ...form, [field]: value })
+  }
 
   const handleClose = () => {
     setInviteLink(null)
-    setForm({ title: '', gameTitle: '', entryFee: 50, maxParticipants: 8, type: 'open', privatePassword: '' })
+    setForm({ title: '', gameTitle: '', entryFee: 0, maxParticipants: 2, type: 'open', privatePassword: '' })
     setError('')
     onClose()
   }
@@ -43,8 +56,11 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
   const handleSubmit = async () => {
     if (!form.title.trim()) return setError('Tournament name is required')
     if (!form.gameTitle) return setError('Please select a game')
-    if (form.maxParticipants < 4 || form.maxParticipants > 12)
-      return setError('Max players must be between 4 and 12')
+    const maxP = Number(form.maxParticipants)
+    if (form.gameTitle === 'Blackjack' && (maxP < 2 || maxP > 6))
+      return setError('Blackjack tournaments support 2 to 6 players')
+    if (form.gameTitle !== 'Blackjack' && (maxP < 2 || maxP > 12))
+      return setError('Max players must be between 2 and 12')
     if (form.type === 'private' && !form.privatePassword.trim())
       return setError('Private tournaments require a password')
 
@@ -115,24 +131,12 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
               <Typography sx={{ color: 'white', fontSize: 14 }}>{form.privatePassword}</Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                fullWidth
-                onClick={handleCopyLink}
-                sx={{
-                  bgcolor: GOLD, color: DARK, py: 1.5,
-                  fontWeight: 700, fontSize: 14,
-                  '&:hover': { bgcolor: '#E8C97A' }
-                }}>
+              <Button fullWidth onClick={handleCopyLink}
+                sx={{ bgcolor: GOLD, color: DARK, py: 1.5, fontWeight: 700, fontSize: 14, '&:hover': { bgcolor: '#E8C97A' } }}>
                 Copy Link
               </Button>
-              <Button
-                fullWidth
-                onClick={() => { onCreated(); handleClose() }}
-                sx={{
-                  color: '#aaa', border: '1px solid rgba(255,255,255,0.1)',
-                  py: 1.5, fontSize: 14,
-                  '&:hover': { borderColor: 'white', color: 'white' }
-                }}>
+              <Button fullWidth onClick={() => { onCreated(); handleClose() }}
+                sx={{ color: '#aaa', border: '1px solid rgba(255,255,255,0.1)', py: 1.5, fontSize: 14, '&:hover': { borderColor: 'white', color: 'white' } }}>
                 Done
               </Button>
             </Box>
@@ -150,8 +154,7 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
 
             <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>Game</Typography>
             <Select
-              fullWidth
-              displayEmpty
+              fullWidth displayEmpty
               value={form.gameTitle}
               onChange={handleChange('gameTitle')}
               sx={{
@@ -174,8 +177,16 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
                 <TextField fullWidth type="number" value={form.entryFee} onChange={handleChange('entryFee')} sx={inputSx} />
               </Box>
               <Box sx={{ flex: 1 }}>
-                <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>Max Players</Typography>
-                <TextField fullWidth type="number" value={form.maxParticipants} onChange={handleChange('maxParticipants')} sx={inputSx} />
+                <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+                  Max Players {isBlackjack ? '(2–6)' : '(2–12)'}
+                </Typography>
+                <TextField
+                  fullWidth type="number"
+                  value={form.maxParticipants}
+                  onChange={handleChange('maxParticipants')}
+                  slotProps={{ input: { min: 2, max: maxAllowed } }}
+                  sx={inputSx}
+                />
               </Box>
             </Box>
 
@@ -217,12 +228,9 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
             )}
 
             <Button
-              fullWidth
-              onClick={handleSubmit}
-              disabled={loading}
+              fullWidth onClick={handleSubmit} disabled={loading}
               sx={{
-                bgcolor: GOLD, color: DARK, py: 1.5,
-                fontWeight: 700, fontSize: 15,
+                bgcolor: GOLD, color: DARK, py: 1.5, fontWeight: 700, fontSize: 15,
                 '&:hover': { bgcolor: '#E8C97A' },
                 '&.Mui-disabled': { bgcolor: '#5a4a20', color: '#888' }
               }}>

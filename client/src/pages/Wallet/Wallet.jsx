@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
+import { connectSocket } from '../../services/socket'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -35,46 +36,64 @@ const typeLabels = {
 }
 
 export default function Wallet() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const [balance, setBalance] = useState(user?.walletBalance || 0)
   const [transactions, setTransactions] = useState([])
   const [loading, setLoading] = useState(true)
   const [claimingBonus, setClaimingBonus] = useState(false)
   const [bonusClaimed, setBonusClaimed] = useState(false)
 
-  useEffect(() => {
-    const fetchWallet = async () => {
-      try {
-        const walletRes = await api.get('/wallet/me')
-        setBalance(walletRes.data.wallet.walletBalance)
-      } catch (err) {
-        console.log(err)
-      }
-
-      try {
-        const txRes = await api.get('/transactions')
-        setTransactions(Array.isArray(txRes.data?.transactions) ? txRes.data.transactions : [])
-      } catch {
-        setTransactions([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchWallet = async () => {
+    try {
+      const walletRes = await api.get('/wallet/me')
+      setBalance(walletRes.data.wallet.walletBalance)
+    } catch (err) {
+      console.log(err)
     }
+
+    try {
+      const txRes = await api.get('/transactions')
+      setTransactions(Array.isArray(txRes.data?.transactions) ? txRes.data.transactions : [])
+    } catch {
+      setTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchWallet()
   }, [])
 
-  const handleDailyBonus = async () => {
-    setClaimingBonus(true)
-    try {
-      const res = await api.post('/wallet/daily-bonus')
-      setBalance(res.data.walletBalance)
-      setBonusClaimed(true)
-    } catch {
-      setBonusClaimed(true)
-    } finally {
-      setClaimingBonus(false)
+  useEffect(() => {
+    const sock = connectSocket(localStorage.getItem('token'))
+
+    sock.on('wallet:updated', (data) => {
+      setBalance(data.walletBalance)
+      setUser(prev => prev ? { ...prev, walletBalance: data.walletBalance } : prev)
+      // Refresh transaction list to show new entry
+      api.get('/transactions')
+        .then(res => setTransactions(Array.isArray(res.data?.transactions) ? res.data.transactions : []))
+        .catch(() => {})
+    })
+
+    return () => {
+      sock.off('wallet:updated')
     }
+  }, [])
+
+  const handleDailyBonus = async () => {
+  setClaimingBonus(true)
+  try {
+    const res = await api.post('/wallet/daily-bonus')
+    setBalance(res.data.wallet.walletBalance)
+    setBonusClaimed(true)
+  } catch (err) {
+    console.log(err)
+  } finally {
+    setClaimingBonus(false)
   }
+}
 
   return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>

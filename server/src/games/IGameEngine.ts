@@ -1,89 +1,91 @@
 /**
- * IGameEngine — ממשק אחיד לכל מנועי המשחק בפלטפורמה
+ * IGameEngine — Unified interface for all game engines in the platform
  *
- * כל משחק (Blackjack, Chess, Checkers) חייב לממש את ה-interface הזה.
- * כך, קוד ה-Socket.io וניהול הטורניר יכולים לעבוד עם כל משחק
- * בלי לדעת את הפרטים הפנימיים שלו.
+ * Every game (Blackjack, Chess, Checkers, etc.) must implement this interface.
+ * This allows the Socket.io layer and tournament management logic to work
+ * with any game without knowing its internal implementation.
  *
- * עקרון: פולימורפיזם — "אל תדע מי אתה, דע מה אתה עושה"
+ * Principle: Polymorphism — "Don't know who you are, know what you do"
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 /**
- * מייצג שחקן במשחק
+ * Represents a player in the game
  */
 export interface GamePlayer {
-  id: string;       // ObjectId של המשתמש ב-MongoDB
-  name: string;     // שם תצוגה
+  id: string;       // MongoDB ObjectId of the user
+  name: string;     // Display name
 }
 
 /**
- * תוצאה אפשרית של משחק
+ * Possible outcomes of a game
  */
 export type GameOutcome = "win" | "loss" | "draw";
 
 /**
- * מידע על תוצאת המשחק
+ * Game result structure
  */
 export interface GameResult {
-  winnerId: string | null;  // null במקרה של תיקו
+  winnerId: string | null;   // null in case of a tie
+  winnerIds?: string[];      // multiple winners (for tie scenarios)
+  isTie?: boolean;
   outcome: GameOutcome;
-  reason?: string;          // "checkmate" | "timeout" | "surrender" | "rounds-complete" וכו'
+  reason?: string;           // "checkmate" | "timeout" | "surrender" | "rounds-complete" etc.
 }
 
 /**
- * מצב המשחק — כל engine מרחיב type זה לפי הצורך
+ * Base game state — each engine extends this type
  */
 export interface BaseGameState {
-  gameId: string;           // מזהה ייחודי לסשן המשחק
-  players: GamePlayer[];    // רשימת השחקנים
-  isOver: boolean;          // האם המשחק הסתיים?
-  result: GameResult | null; // התוצאה (null אם המשחק עדיין פעיל)
+  gameId: string;            // unique game session identifier
+  players: GamePlayer[];     // list of players
+  isOver: boolean;           // whether the game is finished
+  result: GameResult | null; // null if the game is still active
   createdAt: Date;
 }
 
 // ─── Interface ────────────────────────────────────────────────────────────────
 
 /**
- * כל מנוע משחק חייב לממש את הפונקציות הבאות:
+ * Every game engine must implement the following methods:
  *
- * createGame  — יצירת משחק חדש עם שחקנים
- * makeMove    — ביצוע מהלך / פעולה של שחקן
- * getState    — קבלת מצב המשחק הנוכחי
- * isGameOver  — האם המשחק הסתיים?
- * getResult   — קבלת תוצאת המשחק (אחרי שהסתיים)
+ * createGame  — initialize a new game with players
+ * makeMove    — perform a player action
+ * getState    — retrieve current game state
+ * isGameOver  — check if the game has ended
+ * getResult   — retrieve final result (after game ends)
  */
 export interface IGameEngine<TState extends BaseGameState, TMove> {
   /**
-   * יוצר משחק חדש ומחזיר את המצב ההתחלתי
-   * @param gameId  - מזהה ייחודי (בדרך כלל match._id מ-MongoDB)
-   * @param players - רשימת שחקנים לפי סדר (שחקן 0 = לבן בשחמט וכו')
+   * Creates a new game and returns the initial state
+   * @param gameId  - unique identifier (usually match._id from MongoDB)
+   * @param players - ordered list of players (e.g. index 0 = white in chess)
    */
   createGame(gameId: string, players: GamePlayer[]): TState;
 
   /**
-   * מבצע מהלך/פעולה של שחקן ומחזיר את המצב המעודכן
-   * זורק שגיאה אם המהלך לא חוקי
-   * @param gameId   - מזהה המשחק
-   * @param playerId - מי מבצע את המהלך
-   * @param move     - פרטי המהלך (שונה לכל משחק)
+   * Applies a player move/action and returns the updated state
+   * Throws an error if the move is invalid
+   * @param gameId   - game identifier
+   * @param playerId - player performing the action
+   * @param move     - move payload (game-specific)
    */
   makeMove(gameId: string, playerId: string, move: TMove): TState;
 
   /**
-   * מחזיר את מצב המשחק הנוכחי
-   * זורק שגיאה אם gameId לא קיים
+   * Returns the current game state
+   * Throws an error if the gameId does not exist
    */
   getState(gameId: string): TState;
 
   /**
-   * בודק האם המשחק הסתיים
+   * Checks whether the game has ended
    */
   isGameOver(gameId: string): boolean;
 
   /**
-   * מחזיר את תוצאת המשחק (null אם המשחק עדיין פעיל)
+   * Returns the game result (null if still active)
    */
   getResult(gameId: string): GameResult | null;
 }
