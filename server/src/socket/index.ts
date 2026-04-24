@@ -110,6 +110,9 @@ export function initSocketServer(httpServer: http.Server): Server {
   io.on("connection", (socket) => {
     const userId = socket.data.userId as string;
 
+    // Join personal room so controllers can emit events to a specific user
+    socket.join(`user:${userId}`);
+
     const cleanupReconnectTimer = (gameId: string): boolean => {
       const key = reconnectKey(gameId, userId);
       const timer = reconnectTimers.get(key);

@@ -7,6 +7,7 @@ import AuthNavbar from '../../components/layout/AuthNavbar'
 import FilterBar from '../../components/lobby/FilterBar'
 import TournamentRow from '../../components/lobby/TournamentRow'
 import CreateTournamentModal from '../../components/lobby/CreateTournamentModal'
+import { connectSocket } from '../../services/socket'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -16,7 +17,7 @@ const extractTournaments = (data) =>
   Array.isArray(data?.tournaments) ? data.tournaments : []
 
 export default function Lobby() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
@@ -42,6 +43,19 @@ export default function Lobby() {
 
   useEffect(() => {
     fetchTournaments()
+    refreshUser()
+  }, [fetchTournaments])
+
+  useEffect(() => {
+    const sock = connectSocket(localStorage.getItem('token'))
+
+    sock.on('tournament:created', () => fetchTournaments())
+    sock.on('tournament:opened', () => fetchTournaments())
+
+    return () => {
+      sock.off('tournament:created')
+      sock.off('tournament:opened')
+    }
   }, [fetchTournaments])
 
   const handleJoin = async (tournament) => {

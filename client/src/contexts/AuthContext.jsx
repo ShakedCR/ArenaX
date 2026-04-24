@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { AuthContext } from './AuthContext'
 import api from '../services/api'
+import { connectSocket } from '../services/socket'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
@@ -17,6 +18,21 @@ export function AuthProvider({ children }) {
     .catch(() => localStorage.removeItem('token'))
     .finally(() => setLoading(false))
   }, [])
+
+  // Keep wallet balance in sync across all pages
+  useEffect(() => {
+    if (!user) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+    const sock = connectSocket(token)
+
+    const handleWalletUpdate = (data) => {
+      setUser(prev => prev ? { ...prev, walletBalance: data.walletBalance } : prev)
+    }
+
+    sock.on('wallet:updated', handleWalletUpdate)
+    return () => sock.off('wallet:updated', handleWalletUpdate)
+  }, [user?._id])
 
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password })
@@ -35,8 +51,15 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const refreshUser = async () => {
+    try {
+      const res = await api.get('/auth/me')
+      setUser(res.data.user)
+    } catch {}
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout ,setUser}}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )
