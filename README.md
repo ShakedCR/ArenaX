@@ -5,7 +5,7 @@ Tournament management platform for Blackjack, Chess and Checkers.
 ## Team
 - Shaked Crissy — Frontend + AI
 - Ofek Nagauker — Backend + Auth + Wallet
-- Mevoreich Berrebi — Game Engine + Socket.io
+- Mevorah Berrebi — Game Engine + Socket.io
 
 ## Structure
 - /client — React frontend
