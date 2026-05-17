@@ -14,6 +14,7 @@ export interface IUser extends Document {
   isActive: boolean;
   games: string[];
   groups: Types.ObjectId[];
+  lastDailyBonus?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -73,7 +74,11 @@ const userSchema = new Schema<IUser>(
         type: Schema.Types.ObjectId,
         ref: "Group"
       }
-    ]
+    ],
+    lastDailyBonus: {
+      type: Date,
+      default: null
+    }
   },
   {
     timestamps: true

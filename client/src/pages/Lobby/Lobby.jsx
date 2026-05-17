@@ -49,12 +49,32 @@ export default function Lobby() {
   useEffect(() => {
     const sock = connectSocket(localStorage.getItem('token'))
 
-    sock.on('tournament:created', () => fetchTournaments())
-    sock.on('tournament:opened', () => fetchTournaments())
+    const onCreated = () => fetchTournaments()
+    const onOpened = () => fetchTournaments()
+    const onStatusChanged = () => fetchTournaments()
+    const onParticipantAdded = ({ tournamentId, participant }) => {
+      setTournaments(prev => prev.map(t =>
+        t._id === tournamentId && !t.participants?.some(p => (p._id || p) === participant._id)
+          ? { ...t, participants: [...(t.participants || []), participant] }
+          : t
+      ))
+      setMyTournaments(prev => prev.map(t =>
+        t._id === tournamentId && !t.participants?.some(p => (p._id || p) === participant._id)
+          ? { ...t, participants: [...(t.participants || []), participant] }
+          : t
+      ))
+    }
+
+    sock.on('tournament:created', onCreated)
+    sock.on('tournament:opened', onOpened)
+    sock.on('tournament:status-changed', onStatusChanged)
+    sock.on('tournament:participant-added', onParticipantAdded)
 
     return () => {
-      sock.off('tournament:created')
-      sock.off('tournament:opened')
+      sock.off('tournament:created', onCreated)
+      sock.off('tournament:opened', onOpened)
+      sock.off('tournament:status-changed', onStatusChanged)
+      sock.off('tournament:participant-added', onParticipantAdded)
     }
   }, [fetchTournaments])
 

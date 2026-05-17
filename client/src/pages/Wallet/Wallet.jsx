@@ -47,6 +47,7 @@ export default function Wallet() {
     try {
       const walletRes = await api.get('/wallet/me')
       setBalance(walletRes.data.wallet.walletBalance)
+      if (!walletRes.data.wallet.canClaimDailyBonus) setBonusClaimed(true)
     } catch (err) {
       console.log(err)
     }
@@ -83,17 +84,19 @@ export default function Wallet() {
   }, [])
 
   const handleDailyBonus = async () => {
-  setClaimingBonus(true)
-  try {
-    const res = await api.post('/wallet/daily-bonus')
-    setBalance(res.data.wallet.walletBalance)
-    setBonusClaimed(true)
-  } catch (err) {
-    console.log(err)
-  } finally {
-    setClaimingBonus(false)
+    setClaimingBonus(true)
+    try {
+      const res = await api.post('/wallet/daily-bonus')
+      setBalance(res.data.wallet.walletBalance)
+      setUser(prev => prev ? { ...prev, walletBalance: res.data.wallet.walletBalance } : prev)
+      setBonusClaimed(true)
+    } catch (err) {
+      if (err.response?.status === 400) setBonusClaimed(true)
+      console.log(err)
+    } finally {
+      setClaimingBonus(false)
+    }
   }
-}
 
   return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>

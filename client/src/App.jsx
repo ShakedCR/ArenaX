@@ -15,6 +15,8 @@ import LandingPage from './pages/Landing/LandingPage'
 import AuthSuccess from './pages/Auth/AuthSuccess'
 import WaitingRoom from './pages/Tournament/WaitingRoom'
 import TournamentJoin from './pages/Tournament/TournamentJoin'
+import TournamentsList from './pages/Tournaments/TournamentsList'
+import TournamentStandings from './pages/Tournaments/TournamentStandings'
 
 const theme = createTheme({
   palette: {
@@ -53,6 +55,8 @@ function App() {
               <Route path="/auth/success" element={<AuthSuccess />} />
               <Route path="/tournament/:id/waiting" element={<WaitingRoom />} />
               <Route path="/tournaments/join/:inviteCode" element={<TournamentJoin />} />
+              <Route path="/tournaments" element={<TournamentsList />} />
+              <Route path="/tournaments/:id" element={<TournamentStandings />} />
             </Routes>
           </BrowserRouter>
         </Box>

@@ -57,6 +57,7 @@ export default function Blackjack() {
   const [stageOverData, setStageOverData] = useState(null)
   const [tournamentWinner, setTournamentWinner] = useState(null)
   const [tournamentTie, setTournamentTie] = useState(null)
+  const [tournamentId, setTournamentId] = useState(null)
 
   const userIdRef = useRef(userId)
   useEffect(() => {
@@ -211,7 +212,7 @@ export default function Blackjack() {
       if (isAdvancing) {
         navigate(`/game/blackjack/${data.gameId}`)
       } else {
-        setPhase('eliminated')
+        navigate(`/tournaments/${data.tournamentId}`)
       }
     })
 
@@ -219,6 +220,7 @@ export default function Blackjack() {
       setTournamentWinner(data.winner)
       setTournamentTie(data.isTie ? { winners: data.winners, splitPrize: data.splitPrize } : null)
       setFinalLeaderboard(data.finalLeaderboard || [])
+      setTournamentId(data.tournamentId)
       setPhase('tournament-over')
     })
 
@@ -304,9 +306,16 @@ export default function Blackjack() {
             </Box>
           ))}
         </Box>
-        <Button onClick={() => navigate('/lobby')} sx={{ bgcolor: GOLD, color: DARK, px: 4, py: 1.5, fontFamily: BEBAS, fontSize: 18, '&:hover': { bgcolor: '#E8C97A' } }}>
-          BACK TO LOBBY
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          {tournamentId && (
+            <Button onClick={() => navigate(`/tournaments/${tournamentId}`)} sx={{ bgcolor: GOLD, color: DARK, px: 4, py: 1.5, fontFamily: BEBAS, fontSize: 18, '&:hover': { bgcolor: '#E8C97A' } }}>
+              VIEW TOURNAMENT
+            </Button>
+          )}
+          <Button onClick={() => navigate('/lobby')} sx={{ color: '#aaa', border: '1px solid rgba(255,255,255,0.1)', px: 4, py: 1.5, fontFamily: BEBAS, fontSize: 18, '&:hover': { borderColor: 'white', color: 'white' } }}>
+            LOBBY
+          </Button>
+        </Box>
       </Box>
     )
   }

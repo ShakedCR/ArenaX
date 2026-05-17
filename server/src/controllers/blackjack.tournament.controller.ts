@@ -216,15 +216,19 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
     tournament.participants.push(userObjectId);
     await tournament.save();
 
-    // Notify all users in the waiting room about the new participant
-    getIO().to(`tournament:${id}`).emit("tournament:participant-added", {
+    const participantPayload = {
       tournamentId: id,
       participant: {
         _id: (user._id as Types.ObjectId).toString(),
         username: (user as any).username,
         fullName: (user as any).fullName,
       },
-    });
+    };
+
+    // Notify users in the waiting room
+    getIO().to(`tournament:${id}`).emit("tournament:participant-added", participantPayload);
+    // Notify everyone (Lobby, TournamentsList) so participant counts update live
+    getIO().emit("tournament:participant-added", participantPayload);
 
     // Notify the joining user of their updated wallet balance
     if (tournament.entryFee > 0) {
@@ -363,13 +367,16 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
         "matchData.advancingCount": getAdvancingCount(shuffledIds.length),
       });
 
-      // Notify all players
+      // Notify all players in the waiting room
       getIO().to(`tournament:${id}`).emit("blackjack:tournament-started", {
         tournamentId: id,
         gameId,
         stage: 1,
         playerCount: shuffledIds.length,
       });
+
+      // Notify everyone (Lobby, TournamentsList) that this tournament is now ongoing
+      getIO().emit("tournament:status-changed", { tournamentId: id, status: "ongoing" });
 
       return res.json({ message: "Tournament started", gameId, stage: 1 });
     }
@@ -461,16 +468,20 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
     tournament.participants.push(userObjectId);
     await tournament.save();
 
-    // Notify all users in the waiting room about the new participant
     const tournamentId = (tournament._id as Types.ObjectId).toString();
-    getIO().to(`tournament:${tournamentId}`).emit("tournament:participant-added", {
+    const participantPayload = {
       tournamentId,
       participant: {
         _id: (user._id as Types.ObjectId).toString(),
         username: (user as any).username,
         fullName: (user as any).fullName,
       },
-    });
+    };
+
+    // Notify users in the waiting room
+    getIO().to(`tournament:${tournamentId}`).emit("tournament:participant-added", participantPayload);
+    // Notify everyone (Lobby, TournamentsList) so participant counts update live
+    getIO().emit("tournament:participant-added", participantPayload);
 
     // Notify the joining user of their updated wallet balance
     if (tournament.entryFee > 0) {

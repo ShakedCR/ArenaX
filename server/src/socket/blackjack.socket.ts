@@ -1,4 +1,5 @@
 import { Server, Socket } from "socket.io";
+import { getIO } from ".";
 import { blackjackEngine, BlackjackMove, BlackjackGameState } from "../games/blackjack.engine";
 import BlackjackGameStateModel from "../models/blackjack-game-state.model";
 import Match from "../models/match.model";
@@ -190,9 +191,9 @@ const handleTournamentStageEnd = async (io: Server, gameId: string, state: Black
       }
     }
 
-    await Tournament.findByIdAndUpdate(match.tournament, { status: "completed", prizePool: 0 });
+    await Tournament.findByIdAndUpdate(match.tournament, { status: "completed" });
 
-    io.to(`game:${gameId}`).emit("blackjack:tournament-over", {
+    const tournamentOverPayload = {
       tournamentId: match.tournament.toString(),
       winner: isTie ? null : (winners[0] ?? null),
       winners: isTie ? winners : null,
@@ -200,7 +201,12 @@ const handleTournamentStageEnd = async (io: Server, gameId: string, state: Black
       splitPrize: isTie ? splitPrize : null,
       finalLeaderboard: leaderboard,
       prize: prizePool
-    });
+    };
+
+    // Notify players in the game + spectators on the standings page
+    io.to(`game:${gameId}`).to(`tournament:${match.tournament.toString()}`).emit("blackjack:tournament-over", tournamentOverPayload);
+    // Notify everyone (Lobby, TournamentsList) that the tournament is now completed
+    getIO().emit("tournament:status-changed", { tournamentId: match.tournament.toString(), status: "completed" });
     return;
   }
 
@@ -216,7 +222,8 @@ const handleTournamentStageEnd = async (io: Server, gameId: string, state: Black
     .filter(e => !advancingPlayerIds.includes(e.playerId))
     .map(e => e.playerId);
 
-  io.to(`game:${gameId}`).emit("blackjack:stage-over", {
+  // Notify players in the game + spectators on the standings page
+  io.to(`game:${gameId}`).to(`tournament:${match.tournament.toString()}`).emit("blackjack:stage-over", {
     gameId,
     stage: currentStage,
     advancingPlayers: advancingPlayerIds,
@@ -263,7 +270,8 @@ const handleTournamentStageEnd = async (io: Server, gameId: string, state: Black
         "matchData.advancingCount": advancingPlayerIds.length <= 3 ? 0 : Math.ceil(advancingPlayerIds.length / 2)
       });
 
-      io.to(`game:${gameId}`).emit("blackjack:next-stage", {
+      // Notify players in the game + spectators on the standings page
+      io.to(`game:${gameId}`).to(`tournament:${match.tournament.toString()}`).emit("blackjack:next-stage", {
         tournamentId: match.tournament.toString(),
         gameId: newGameId,
         stage: currentStage + 1,
