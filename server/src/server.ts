@@ -16,7 +16,6 @@ const startServer = async (): Promise<void> => {
     initSocketServer(server);
 
     server.listen(PORT, () => {
-      console.log(`ArenaX server is running on port ${PORT}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

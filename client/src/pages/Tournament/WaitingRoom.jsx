@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
-import { connectSocket } from '../../services/socket'
+import { connectSocket, joinTournamentRoom, leaveTournamentRoom } from '../../services/socket'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -28,20 +28,25 @@ export default function WaitingRoom() {
 
   const userId = user?.id || user?._id
 
+  const syncTournament = async () => {
+    const res = await api.get(`/tournaments/${id}`)
+    const t = res.data.tournament
+    setTournament(t)
+
+    const gameId = t?.matchData?.currentGameId
+    if (t?.status === 'ongoing' && gameId) {
+      navigate(`/game/blackjack/${gameId}`)
+      return t
+    }
+
+    return t
+  }
+
   // Fetch tournament once for initial load
   useEffect(() => {
     const fetchTournament = async () => {
       try {
-        const res = await api.get(`/tournaments/${id}`)
-        const t = res.data.tournament
-        setTournament(t)
-
-        // If tournament already started → go to game
-        const gameId = t?.matchData?.currentGameId
-        if (t?.status === 'ongoing' && gameId) {
-          navigate(`/game/blackjack/${gameId}`)
-          return
-        }
+        await syncTournament()
       } catch {
         setError('Tournament not found')
       } finally {
@@ -57,7 +62,13 @@ export default function WaitingRoom() {
     if (!userId) return
     const sock = connectSocket(localStorage.getItem('token'))
 
-    sock.emit('join-tournament-room', id)
+    const handleConnect = () => joinTournamentRoom(id)
+
+    if (sock.connected) {
+      joinTournamentRoom(id)
+    } else {
+      sock.on('connect', handleConnect)
+    }
 
     sock.on('tournament:participant-added', (data) => {
       if (data.tournamentId !== id) return
@@ -71,13 +82,22 @@ export default function WaitingRoom() {
       })
     })
 
+    sock.on('tournament:opened', (data) => {
+      if (data.tournamentId !== id) return
+      syncTournament().catch(() => {})
+    })
+
     sock.on('blackjack:tournament-started', (data) => {
-      navigate(`/game/blackjack/${data.gameId}`)
+      if (data.tournamentId === id) {
+        navigate(`/game/blackjack/${data.gameId}`)
+      }
     })
 
     return () => {
-      sock.emit('leave-tournament-room', id)
+      leaveTournamentRoom(id)
+      sock.off('connect', handleConnect)
       sock.off('tournament:participant-added')
+      sock.off('tournament:opened')
       sock.off('blackjack:tournament-started')
     }
   }, [id, userId, navigate])

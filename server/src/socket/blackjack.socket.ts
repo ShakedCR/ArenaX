@@ -31,7 +31,7 @@ const startPlayerTimer = (io: Server, gameId: string, playerId: string, ms = PLA
       void persistState(state, `timeout:${playerId}`).then(() =>
         broadcastState(io, gameId, state)
       );
-    } catch {}
+    } catch { }
   }, ms);
   playerTimers.set(key, timer);
 };
@@ -51,12 +51,14 @@ const restoreGameIfNeeded = async (gameId: string): Promise<void> => {
 const persistState = async (state: BlackjackGameState, lastAction: string): Promise<void> => {
   await BlackjackGameStateModel.findOneAndUpdate(
     { gameId: state.gameId },
-    { $set: {
+    {
+      $set: {
         status: state.isOver ? "completed" : "active",
         stateSnapshot: state,
         leaderboard: blackjackEngine.getLeaderboard(state.gameId),
         lastAction
-    }},
+      }
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 };

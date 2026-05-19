@@ -8,9 +8,6 @@ import Transaction from "../models/transaction.model";
 import { blackjackEngine } from "../games/blackjack.engine";
 import BlackjackGameStateModel from "../models/blackjack-game-state.model";
 import { getIO } from "../socket";
-import { TournamentService } from "../services/tournament.service";
-import { WalletService } from "../services/wallet.service";
-import { ApiResponseHandler } from "../utils/api-response";
 
 const generateInviteCode = (): string => {
   const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -368,11 +365,11 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
 
       // Notify all players
       getIO().to(`tournament:${id}`).emit("blackjack:tournament-started", {
-          tournamentId: id,
-          gameId,
-          stage: 1,
-          playerCount: shuffledIds.length,
-        });
+        tournamentId: id,
+        gameId,
+        stage: 1,
+        playerCount: shuffledIds.length,
+      });
 
       return res.json({ message: "Tournament started", gameId, stage: 1 });
     }
@@ -431,17 +428,10 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
 
     const tournament = await Tournament.findOne({ inviteCode });
     if (!tournament) return res.status(404).json({ message: "Tournament not found" });
-    
-    // Allow creator to join draft private tournaments via invite link
-    const isCreator = isTournamentCreator(tournament.createdBy, req.userId);
-    const canCreatorJoinDraft = tournament.status === "draft" && tournament.isPrivate === true && isCreator;
-
-    if (tournament.status !== "open" && !canCreatorJoinDraft) {
+    if (tournament.status !== "open")
       return res.status(400).json({ message: "Tournament is not open for registration" });
-    }
 
-    // Only require password for non-creators or for creators joining open tournaments
-    if (tournament.isPrivate && !isCreator) {
+    if (tournament.isPrivate) {
       if (!privatePassword || privatePassword !== tournament.privatePassword)
         return res.status(403).json({ message: "Invalid private tournament password" });
     }
@@ -525,16 +515,3 @@ export const regenerateTournamentInviteCode = async (req: AuthRequest, res: Resp
     return res.status(500).json({ message: "Server error" });
   }
 };
-
-export const getQRCode = async (req: AuthRequest, res: Response) => {
-  try {
-    const id = req.params.id as string;
-    const qrImage = await TournamentService.getQRImage(id);
-    return res.status(200).json(ApiResponseHandler.success({ qrImage }));
-  } catch (error: any) {
-    console.error("Get QR code error:", error);
-    const statusCode = error.status || 500;
-    return res.status(statusCode).json(ApiResponseHandler.error(error.message));
-  }
-};
-

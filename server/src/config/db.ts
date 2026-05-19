@@ -8,7 +8,6 @@ const connectDB = async (): Promise<void> => {
   }
 
   await mongoose.connect(mongoUri);
-  console.log("Connected to MongoDB");
 };
 
 export default connectDB;
