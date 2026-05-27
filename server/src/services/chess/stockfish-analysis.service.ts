@@ -1,8 +1,44 @@
 import { Chess } from "chess.js";
 
-type StockfishEvaluation = {
+export type MoveClassification =
+  | "best"
+  | "excellent"
+  | "good"
+  | "inaccuracy"
+  | "mistake"
+  | "blunder";
+
+export type ChessMoveAnalysis = {
+  moveNumber: number;
+  ply: number;
+  playerColor: "white" | "black";
+  playedMove: string;
+  bestMove: string;
+  evaluationBefore: string;
+  evaluationAfter: string;
+  centipawnLoss: number;
+  classification: MoveClassification;
+  comment: string;
+};
+
+export type StockfishGameAnalysis = {
   bestMove: string;
   evaluation: string;
+  fen: string;
+  depth: number;
+  accuracyWhite: number;
+  accuracyBlack: number;
+  mistakes: string[];
+  blunders: string[];
+  totalMistakes: number;
+  totalBlunders: number;
+  moveClassifications: ChessMoveAnalysis[];
+};
+
+type StockfishPositionAnalysis = {
+  bestMove: string;
+  evaluation: string;
+  evaluationCp: number;
   fen: string;
   depth: number;
 };
@@ -13,10 +49,107 @@ const createStockfishEngine = () => {
   return Stockfish();
 };
 
+const parseEvaluation = (line: string): { text: string; cp: number } | null => {
+  const cpMatch = line.match(/score cp (-?\d+)/);
+
+  if (cpMatch) {
+    const cp = Number(cpMatch[1]);
+    const pawns = cp / 100;
+
+    return {
+      text: pawns > 0 ? `+${pawns.toFixed(2)}` : pawns.toFixed(2),
+      cp
+    };
+  }
+
+  const mateMatch = line.match(/score mate (-?\d+)/);
+
+  if (mateMatch) {
+    const mate = Number(mateMatch[1]);
+
+    return {
+      text: `Mate in ${mate}`,
+      cp: mate > 0 ? 100000 : -100000
+    };
+  }
+
+  return null;
+};
+
+const parseDepth = (line: string): number | null => {
+  const depthMatch = line.match(/depth (\d+)/);
+  return depthMatch ? Number(depthMatch[1]) : null;
+};
+
+export const analyzeChessPositionWithStockfish = async (
+  fen: string,
+  depth = 10
+): Promise<StockfishPositionAnalysis> => {
+  return new Promise((resolve, reject) => {
+    const engine = createStockfishEngine();
+
+    let bestMove = "";
+    let evaluation = "0.00";
+    let evaluationCp = 0;
+    let lastDepth = 0;
+
+    const timeout = setTimeout(() => {
+      try {
+        engine.postMessage("quit");
+      } catch {
+        // ignore
+      }
+
+      reject(new Error("Stockfish analysis timeout"));
+    }, 20000);
+
+    engine.onmessage = (event: string | { data: string }) => {
+      const line = typeof event === "string" ? event : event.data;
+
+      if (line.includes("score")) {
+        const parsedEvaluation = parseEvaluation(line);
+        const parsedDepth = parseDepth(line);
+
+        if (parsedEvaluation) {
+          evaluation = parsedEvaluation.text;
+          evaluationCp = parsedEvaluation.cp;
+        }
+
+        if (parsedDepth) {
+          lastDepth = parsedDepth;
+        }
+      }
+
+      if (line.startsWith("bestmove")) {
+        clearTimeout(timeout);
+        bestMove = line.split(" ")[1] || "";
+
+        try {
+          engine.postMessage("quit");
+        } catch {
+          // ignore
+        }
+
+        resolve({
+          bestMove,
+          evaluation,
+          evaluationCp,
+          fen,
+          depth: lastDepth
+        });
+      }
+    };
+
+    engine.postMessage("uci");
+    engine.postMessage("isready");
+    engine.postMessage(`position fen ${fen}`);
+    engine.postMessage(`go depth ${depth}`);
+  });
+};
+
 const applyMove = (chess: Chess, move: string): void => {
   const cleanMove = move.trim();
 
-  // UCI format: e2e4 / e7e8q
   if (/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(cleanMove)) {
     const result = chess.move({
       from: cleanMove.slice(0, 2),
@@ -31,7 +164,6 @@ const applyMove = (chess: Chess, move: string): void => {
     return;
   }
 
-  // SAN format: e4 / Nf3 / O-O
   const result = chess.move(cleanMove);
 
   if (!result) {
@@ -39,100 +171,142 @@ const applyMove = (chess: Chess, move: string): void => {
   }
 };
 
-const buildFenFromMoves = (moves: string[]): string => {
-  const chess = new Chess();
-
-  for (const move of moves) {
-    applyMove(chess, move);
-  }
-
-  return chess.fen();
+const classifyMove = (centipawnLoss: number): MoveClassification => {
+  if (centipawnLoss <= 10) return "best";
+  if (centipawnLoss <= 25) return "excellent";
+  if (centipawnLoss <= 50) return "good";
+  if (centipawnLoss <= 100) return "inaccuracy";
+  if (centipawnLoss <= 200) return "mistake";
+  return "blunder";
 };
 
-const parseEvaluation = (line: string): string | null => {
-  const cpMatch = line.match(/score cp (-?\d+)/);
-
-  if (cpMatch) {
-    const value = Number(cpMatch[1]) / 100;
-    return value > 0 ? `+${value.toFixed(2)}` : value.toFixed(2);
+const buildMoveComment = (
+  classification: MoveClassification,
+  playedMove: string,
+  bestMove: string
+): string => {
+  if (classification === "best") {
+    return `Best move. ${playedMove} matched the engine recommendation.`;
   }
 
-  const mateMatch = line.match(/score mate (-?\d+)/);
-
-  if (mateMatch) {
-    return `Mate in ${mateMatch[1]}`;
+  if (classification === "excellent") {
+    return `Excellent move. ${playedMove} was very close to the best engine move.`;
   }
 
-  return null;
+  if (classification === "good") {
+    return `Good move. ${playedMove} kept the position stable.`;
+  }
+
+  if (classification === "inaccuracy") {
+    return `Inaccuracy. Consider ${bestMove} instead of ${playedMove}.`;
+  }
+
+  if (classification === "mistake") {
+    return `Mistake. ${playedMove} lost some advantage. Better was ${bestMove}.`;
+  }
+
+  return `Blunder. ${playedMove} caused a major drop. Best move was ${bestMove}.`;
 };
 
-const parseDepth = (line: string): number | null => {
-  const depthMatch = line.match(/depth (\d+)/);
-  return depthMatch ? Number(depthMatch[1]) : null;
+const calculateMoveAccuracy = (centipawnLoss: number): number => {
+  return Math.max(0, Math.round(100 - centipawnLoss / 3));
 };
 
-export const analyzeChessPositionWithStockfish = async (
+export const analyzeChessGameWithStockfish = async (
   moves: string[],
-  depth = 10
-): Promise<StockfishEvaluation> => {
-  const fen = buildFenFromMoves(moves);
+  depth = 8
+): Promise<StockfishGameAnalysis> => {
+  const chess = new Chess();
+  const cache = new Map<string, StockfishPositionAnalysis>();
 
-  return new Promise((resolve, reject) => {
-    const engine = createStockfishEngine();
+  const getAnalysis = async (fen: string) => {
+    if (!cache.has(fen)) {
+      const analysis = await analyzeChessPositionWithStockfish(fen, depth);
+      cache.set(fen, analysis);
+    }
 
-    let bestMove = "";
-    let evaluation = "0.00";
-    let lastDepth = 0;
+    return cache.get(fen)!;
+  };
 
-    const timeout = setTimeout(() => {
-      try {
-        engine.postMessage("quit");
-      } catch {
-        // ignore
-      }
+  const moveClassifications: ChessMoveAnalysis[] = [];
+  const whiteAccuracies: number[] = [];
+  const blackAccuracies: number[] = [];
 
-      reject(new Error("Stockfish analysis timeout"));
-    }, 15000);
+  for (let i = 0; i < moves.length; i++) {
+    const playedMove = moves[i];
+    const fenBefore = chess.fen();
+    const playerColor = chess.turn() === "w" ? "white" : "black";
+    const moveNumber = Math.floor(i / 2) + 1;
 
-    engine.onmessage = (event: string | { data: string }) => {
-      const line = typeof event === "string" ? event : event.data;
+    const beforeAnalysis = await getAnalysis(fenBefore);
 
-      if (line.includes("score")) {
-        const parsedEvaluation = parseEvaluation(line);
-        const parsedDepth = parseDepth(line);
+    applyMove(chess, playedMove);
 
-        if (parsedEvaluation) {
-          evaluation = parsedEvaluation;
-        }
+    const fenAfter = chess.fen();
+    const afterAnalysis = await getAnalysis(fenAfter);
 
-        if (parsedDepth) {
-          lastDepth = parsedDepth;
-        }
-      }
+    const evaluationForMoverBefore = beforeAnalysis.evaluationCp;
+    const evaluationForMoverAfter = -afterAnalysis.evaluationCp;
 
-      if (line.startsWith("bestmove")) {
-        clearTimeout(timeout);
+    const centipawnLoss = Math.max(
+      0,
+      evaluationForMoverBefore - evaluationForMoverAfter
+    );
 
-        bestMove = line.split(" ")[1] || "";
+    const classification = classifyMove(centipawnLoss);
+    const moveAccuracy = calculateMoveAccuracy(centipawnLoss);
 
-        try {
-          engine.postMessage("quit");
-        } catch {
-          // ignore
-        }
+    if (playerColor === "white") {
+      whiteAccuracies.push(moveAccuracy);
+    } else {
+      blackAccuracies.push(moveAccuracy);
+    }
 
-        resolve({
-          bestMove,
-          evaluation,
-          fen,
-          depth: lastDepth
-        });
-      }
-    };
+    moveClassifications.push({
+      moveNumber,
+      ply: i + 1,
+      playerColor,
+      playedMove,
+      bestMove: beforeAnalysis.bestMove,
+      evaluationBefore: beforeAnalysis.evaluation,
+      evaluationAfter: afterAnalysis.evaluation,
+      centipawnLoss,
+      classification,
+      comment: buildMoveComment(
+        classification,
+        playedMove,
+        beforeAnalysis.bestMove
+      )
+    });
+  }
 
-    engine.postMessage("uci");
-    engine.postMessage("isready");
-    engine.postMessage(`position fen ${fen}`);
-    engine.postMessage(`go depth ${depth}`);
-  });
+  const finalFen = chess.fen();
+  const finalAnalysis = await getAnalysis(finalFen);
+
+  const mistakes = moveClassifications
+    .filter((move) => move.classification === "mistake")
+    .map((move) => `Move ${move.moveNumber}: ${move.comment}`);
+
+  const blunders = moveClassifications
+    .filter((move) => move.classification === "blunder")
+    .map((move) => `Move ${move.moveNumber}: ${move.comment}`);
+
+  const average = (values: number[]) => {
+    if (values.length === 0) return 0;
+    return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+  };
+
+  return {
+    bestMove: finalAnalysis.bestMove,
+    evaluation: finalAnalysis.evaluation,
+    fen: finalFen,
+    depth: finalAnalysis.depth,
+    accuracyWhite: average(whiteAccuracies),
+    accuracyBlack: average(blackAccuracies),
+    mistakes,
+    blunders,
+    totalMistakes: mistakes.length,
+    totalBlunders: blunders.length,
+    moveClassifications
+  };
 };

@@ -13,13 +13,38 @@ export interface IMatchResult {
   metadata?: Record<string, unknown>;
 }
 
+export interface IMoveClassification {
+  moveNumber: number;
+  ply: number;
+  playerColor: "white" | "black";
+  playedMove: string;
+  bestMove: string;
+  evaluationBefore: string;
+  evaluationAfter: string;
+  centipawnLoss: number;
+  classification:
+    | "best"
+    | "excellent"
+    | "good"
+    | "inaccuracy"
+    | "mistake"
+    | "blunder";
+  comment: string;
+}
+
 export interface IMatchAnalysis {
   summary?: string;
   accuracyWhite?: number;
   accuracyBlack?: number;
   bestMove?: string;
+  evaluation?: string;
+  fen?: string;
+  depth?: number;
   mistakes?: string[];
   blunders?: string[];
+  totalMistakes?: number;
+  totalBlunders?: number;
+  moveClassifications?: IMoveClassification[];
 }
 
 export interface IMatch extends Document {
@@ -155,7 +180,16 @@ const matchSchema = new Schema<IMatch>(
       blunders: {
         type: [String],
         default: []
-      }
+      },
+      evaluation: { type: String, default: "" },
+      fen: { type: String, default: "" },
+      depth: { type: Number, default: 0 },
+      totalMistakes: { type: Number, default: 0 },
+      totalBlunders: { type: Number, default: 0 },
+      moveClassifications: {
+      type: [Schema.Types.Mixed],
+      default: []
+}
     }
   },
   {
