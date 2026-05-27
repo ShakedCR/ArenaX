@@ -1,21 +1,10 @@
-import Match from "../models/match.model";
-import { analyzeChessPositionWithStockfish } from "./chess/stockfish-analysis.service";
+import Match, { IMatchAnalysis } from "../models/match.model";
+import { analyzeChessGameWithStockfish } from "./chess/stockfish-analysis.service";
 
-type AnalysisResult = {
-  summary: string;
-  accuracyWhite: number;
-  accuracyBlack: number;
-  bestMove: string;
-  mistakes: string[];
-  blunders: string[];
-  evaluation?: string;
-  fen?: string;
-  depth?: number;
-};
+type AnalysisResult = IMatchAnalysis;
 
 const buildChessAnalysis = async (
-  moves: string[],
-  pgn: string
+  moves: string[]
 ): Promise<AnalysisResult> => {
   if (moves.length === 0) {
     return {
@@ -24,36 +13,58 @@ const buildChessAnalysis = async (
       accuracyBlack: 0,
       bestMove: "",
       mistakes: ["No move history available."],
-      blunders: []
+      blunders: [],
+      totalMistakes: 0,
+      totalBlunders: 0,
+      moveClassifications: []
     };
   }
 
-  const stockfishResult = await analyzeChessPositionWithStockfish(moves, 10);
+  const result = await analyzeChessGameWithStockfish(moves, 8);
 
   return {
-    summary: `Stockfish analysis completed. The final position evaluation is ${stockfishResult.evaluation}. Recommended best move from the final position: ${stockfishResult.bestMove}.`,
-    accuracyWhite: moves.length >= 10 ? 84 : 72,
-    accuracyBlack: moves.length >= 10 ? 79 : 70,
-    bestMove: stockfishResult.bestMove,
-    mistakes:
-      moves.length < 6
-        ? ["The game is short, so strategic analysis is limited."]
-        : ["Review key middle-game decisions and compare them with the engine recommendation."],
-    blunders: [],
-    evaluation: stockfishResult.evaluation,
-    fen: stockfishResult.fen,
-    depth: stockfishResult.depth
+    summary: `Stockfish full-game analysis completed. Final evaluation: ${result.evaluation}. White accuracy: ${result.accuracyWhite}%, Black accuracy: ${result.accuracyBlack}%. Detected ${result.totalMistakes} mistakes and ${result.totalBlunders} blunders.`,
+
+    accuracyWhite: result.accuracyWhite,
+    accuracyBlack: result.accuracyBlack,
+
+    bestMove: result.bestMove,
+
+    mistakes: result.mistakes,
+    blunders: result.blunders,
+
+    evaluation: result.evaluation,
+    fen: result.fen,
+    depth: result.depth,
+
+    totalMistakes: result.totalMistakes,
+    totalBlunders: result.totalBlunders,
+
+    moveClassifications: result.moveClassifications
   };
 };
 
-const buildCheckersAnalysis = (moves: string[]): AnalysisResult => {
+const buildCheckersAnalysis = (
+  moves: string[]
+): AnalysisResult => {
   return {
     summary: `Checkers analysis completed. The match included ${moves.length} recorded moves. Future versions can include capture-chain and board-control analysis.`,
+
     accuracyWhite: 78,
     accuracyBlack: 76,
+
     bestMove: moves[0] || "",
-    mistakes: ["Look for missed capture opportunities and weak diagonal control."],
-    blunders: []
+
+    mistakes: [
+      "Look for missed capture opportunities and weak diagonal control."
+    ],
+
+    blunders: [],
+
+    totalMistakes: 1,
+    totalBlunders: 0,
+
+    moveClassifications: []
   };
 };
 
@@ -61,11 +72,22 @@ const buildBlackjackAnalysis = (): AnalysisResult => {
   return {
     summary:
       "Blackjack analysis completed. Future versions can evaluate hit/stand decisions using probability and expected value.",
+
     accuracyWhite: 0,
     accuracyBlack: 0,
+
     bestMove: "",
-    mistakes: ["Review whether hit/stand decisions matched basic strategy."],
-    blunders: []
+
+    mistakes: [
+      "Review whether hit/stand decisions matched basic strategy."
+    ],
+
+    blunders: [],
+
+    totalMistakes: 1,
+    totalBlunders: 0,
+
+    moveClassifications: []
   };
 };
 
@@ -84,28 +106,42 @@ export const analyzeMatchById = async (
 
   const gameTitle = match.gameTitle.toLowerCase();
   const moves = match.moves || [];
-  const pgn = match.pgn || "";
 
   let analysis: AnalysisResult;
 
   if (gameTitle.includes("chess")) {
-    analysis = await buildChessAnalysis(moves, pgn);
-  } else if (gameTitle.includes("checkers") || gameTitle.includes("draughts")) {
+    analysis = await buildChessAnalysis(moves);
+
+  } else if (
+    gameTitle.includes("checkers") ||
+    gameTitle.includes("draughts")
+  ) {
     analysis = buildCheckersAnalysis(moves);
+
   } else if (gameTitle.includes("blackjack")) {
     analysis = buildBlackjackAnalysis();
+
   } else {
     analysis = {
       summary: `General match analysis completed for ${match.gameTitle}.`,
+
       accuracyWhite: 0,
       accuracyBlack: 0,
+
       bestMove: moves[0] || "",
+
       mistakes: [],
-      blunders: []
+      blunders: [],
+
+      totalMistakes: 0,
+      totalBlunders: 0,
+
+      moveClassifications: []
     };
   }
 
   match.analysis = analysis;
+
   await match.save();
 
   return analysis;
