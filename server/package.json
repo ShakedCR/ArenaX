@@ -11,7 +11,7 @@
     "@types/express-session": "^1.18.2",
     "@types/jsonwebtoken": "^9.0.10",
     "bcrypt": "^5.1.1",
-    "chess.js": "^1.0.0",
+    "chess.js": "^1.4.0",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "draughts": "^0.2.1",
@@ -23,10 +23,12 @@
     "morgan": "^1.10.1",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
-    "socket.io": "^4.6.0"
+    "socket.io": "^4.6.0",
+    "stockfish": "^18.0.7"
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/chess.js": "^0.13.7",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/morgan": "^1.9.10",
