@@ -1,4 +1,5 @@
 import Match from "../models/match.model";
+import { analyzeChessPositionWithStockfish } from "./chess/stockfish-analysis.service";
 
 type AnalysisResult = {
   summary: string;
@@ -7,24 +8,41 @@ type AnalysisResult = {
   bestMove: string;
   mistakes: string[];
   blunders: string[];
+  evaluation?: string;
+  fen?: string;
+  depth?: number;
 };
 
-const buildChessAnalysis = (moves: string[], pgn: string): AnalysisResult => {
-  const moveCount = moves.length;
+const buildChessAnalysis = async (
+  moves: string[],
+  pgn: string
+): Promise<AnalysisResult> => {
+  if (moves.length === 0) {
+    return {
+      summary: "No moves were recorded for this chess match.",
+      accuracyWhite: 0,
+      accuracyBlack: 0,
+      bestMove: "",
+      mistakes: ["No move history available."],
+      blunders: []
+    };
+  }
+
+  const stockfishResult = await analyzeChessPositionWithStockfish(moves, 10);
 
   return {
-    summary: `Chess analysis completed. The game included ${moveCount} moves. PGN was generated successfully and can be used later for deeper Stockfish analysis.`,
-    accuracyWhite: moveCount >= 10 ? 84 : 72,
-    accuracyBlack: moveCount >= 10 ? 79 : 70,
-    bestMove: moves[0] || "",
+    summary: `Stockfish analysis completed. The final position evaluation is ${stockfishResult.evaluation}. Recommended best move from the final position: ${stockfishResult.bestMove}.`,
+    accuracyWhite: moves.length >= 10 ? 84 : 72,
+    accuracyBlack: moves.length >= 10 ? 79 : 70,
+    bestMove: stockfishResult.bestMove,
     mistakes:
-      moveCount < 6
-        ? ["The game is very short, so strategic analysis is limited."]
-        : ["Review the middle-game decisions for possible improvements."],
-    blunders:
-      moveCount < 4
-        ? ["Not enough moves to detect major blunders."]
-        : []
+      moves.length < 6
+        ? ["The game is short, so strategic analysis is limited."]
+        : ["Review key middle-game decisions and compare them with the engine recommendation."],
+    blunders: [],
+    evaluation: stockfishResult.evaluation,
+    fen: stockfishResult.fen,
+    depth: stockfishResult.depth
   };
 };
 
@@ -39,20 +57,21 @@ const buildCheckersAnalysis = (moves: string[]): AnalysisResult => {
   };
 };
 
-const buildBlackjackAnalysis = (match: any): AnalysisResult => {
+const buildBlackjackAnalysis = (): AnalysisResult => {
   return {
-    summary: "Blackjack analysis completed. Future versions can evaluate hit/stand decisions using probability and expected value.",
+    summary:
+      "Blackjack analysis completed. Future versions can evaluate hit/stand decisions using probability and expected value.",
     accuracyWhite: 0,
     accuracyBlack: 0,
     bestMove: "",
-    mistakes: [
-      "Review whether hit/stand decisions matched basic strategy."
-    ],
+    mistakes: ["Review whether hit/stand decisions matched basic strategy."],
     blunders: []
   };
 };
 
-export const analyzeMatchById = async (matchId: string): Promise<AnalysisResult> => {
+export const analyzeMatchById = async (
+  matchId: string
+): Promise<AnalysisResult> => {
   const match = await Match.findById(matchId);
 
   if (!match) {
@@ -70,11 +89,11 @@ export const analyzeMatchById = async (matchId: string): Promise<AnalysisResult>
   let analysis: AnalysisResult;
 
   if (gameTitle.includes("chess")) {
-    analysis = buildChessAnalysis(moves, pgn);
+    analysis = await buildChessAnalysis(moves, pgn);
   } else if (gameTitle.includes("checkers") || gameTitle.includes("draughts")) {
     analysis = buildCheckersAnalysis(moves);
   } else if (gameTitle.includes("blackjack")) {
-    analysis = buildBlackjackAnalysis(match);
+    analysis = buildBlackjackAnalysis();
   } else {
     analysis = {
       summary: `General match analysis completed for ${match.gameTitle}.`,
