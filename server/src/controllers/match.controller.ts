@@ -4,9 +4,17 @@ import Match from "../models/match.model";
 import Tournament from "../models/tournament.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 
+const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
+
 export const getTournamentMatches = async (req: AuthRequest, res: Response) => {
   try {
-    const { tournamentId } = req.params;
+    const tournamentId = req.params.tournamentId as string;
+
+    if (!isValidObjectId(tournamentId)) {
+      return res.status(400).json({
+        message: "Invalid tournament ID"
+      });
+    }
 
     const matches = await Match.find({ tournament: tournamentId })
       .populate("participants", "fullName username email avatarUrl")
@@ -25,29 +33,17 @@ export const getTournamentMatches = async (req: AuthRequest, res: Response) => {
   }
 };
 
-const shuffleParticipants = (participants: Types.ObjectId[]): Types.ObjectId[] => {
-  const shuffled = [...participants];
-
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  return shuffled;
-};
-
 const createNextRoundMatches = async (
-  tournamentId: string,
+  tournamentId: Types.ObjectId,
   gameTitle: string,
   round: number,
   winners: Types.ObjectId[]
 ) => {
-  const shuffledWinners = shuffleParticipants(winners);
   const matchesToCreate = [];
 
-  for (let i = 0; i < shuffledWinners.length; i += 2) {
-    const playerOne = shuffledWinners[i];
-    const playerTwo = shuffledWinners[i + 1];
+  for (let i = 0; i < winners.length; i += 2) {
+    const playerOne = winners[i];
+    const playerTwo = winners[i + 1];
 
     if (!playerTwo) {
       matchesToCreate.push({
@@ -80,7 +76,7 @@ const createNextRoundMatches = async (
 
 export const reportMatchResult = async (req: AuthRequest, res: Response) => {
   try {
-    const { matchId } = req.params;
+    const matchId = req.params.matchId as string;
     const { winnerId, score, metadata } = req.body;
 
     if (!req.userId) {
@@ -89,9 +85,15 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (!winnerId) {
+    if (!isValidObjectId(matchId)) {
       return res.status(400).json({
-        message: "winnerId is required"
+        message: "Invalid match ID"
+      });
+    }
+
+    if (!winnerId || !isValidObjectId(winnerId)) {
+      return res.status(400).json({
+        message: "Valid winnerId is required"
       });
     }
 
@@ -117,6 +119,12 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
       });
     }
 
+    if (tournament.status !== "ongoing") {
+      return res.status(400).json({
+        message: "Match results can only be reported for ongoing tournaments"
+      });
+    }
+
     if (match.status === "completed") {
       return res.status(400).json({
         message: "Match result was already reported"
@@ -125,12 +133,14 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
 
     if (match.participants.length < 2) {
       return res.status(400).json({
-        message: "Cannot manually report result for a match without two participants"
+        message: "Cannot manually report result for a BYE match"
       });
     }
 
-    const isWinnerParticipant = match.participants.some(
-      (participantId) => participantId.toString() === winnerId
+    const winnerObjectId = new Types.ObjectId(winnerId);
+
+    const isWinnerParticipant = match.participants.some((participantId) =>
+      participantId.equals(winnerObjectId)
     );
 
     if (!isWinnerParticipant) {
@@ -142,7 +152,7 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
     match.status = "completed";
     match.endedAt = new Date();
     match.result = {
-      winner: new Types.ObjectId(winnerId),
+      winner: winnerObjectId,
       score: score || "",
       metadata: metadata || {}
     };
@@ -152,7 +162,7 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
     const currentRoundMatches = await Match.find({
       tournament: tournament._id,
       round: match.round
-    });
+    }).sort({ createdAt: 1 });
 
     const isRoundCompleted = currentRoundMatches.every(
       (currentMatch) => currentMatch.status === "completed"
@@ -161,7 +171,8 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
     if (!isRoundCompleted) {
       return res.status(200).json({
         message: "Match result reported successfully",
-        match
+        match,
+        roundCompleted: false
       });
     }
 
@@ -176,6 +187,8 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
       return res.status(200).json({
         message: "Match result reported successfully. Tournament completed.",
         match,
+        roundCompleted: true,
+        tournamentCompleted: true,
         championId: winners[0],
         tournament
       });
@@ -183,23 +196,34 @@ export const reportMatchResult = async (req: AuthRequest, res: Response) => {
 
     const nextRound = match.round + 1;
 
-    const existingNextRoundMatches = await Match.countDocuments({
+    const existingNextRoundMatches = await Match.find({
       tournament: tournament._id,
       round: nextRound
     });
 
-    if (existingNextRoundMatches === 0) {
-      await createNextRoundMatches(
-        tournament._id.toString(),
-        tournament.gameTitle,
+    if (existingNextRoundMatches.length > 0) {
+      return res.status(200).json({
+        message: "Match result reported successfully. Next round already exists.",
+        match,
+        roundCompleted: true,
         nextRound,
-        winners
-      );
+        nextRoundMatches: existingNextRoundMatches
+      });
     }
+
+    const nextRoundMatches = await createNextRoundMatches(
+      tournament._id as Types.ObjectId,
+      tournament.gameTitle,
+      nextRound,
+      winners
+    );
 
     return res.status(200).json({
       message: "Match result reported successfully. Next round generated.",
-      match
+      match,
+      roundCompleted: true,
+      nextRound,
+      nextRoundMatches
     });
   } catch (error) {
     console.error("Report match result error:", error);
