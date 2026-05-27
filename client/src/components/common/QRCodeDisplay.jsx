@@ -3,7 +3,7 @@ import QRCode from 'qrcode.react';
 import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Paper, CircularProgress } from '@mui/material';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 
-const QRCodeDisplay = ({ open, onClose, inviteLink, qrImage, tournamentName, isLoading = false }) => {
+const QRCodeDisplay = ({ open, onClose, inviteLink, qrImage, tournamentName, isLoading = false, hasPassword = false }) => {
   const handleCopy = () => {
     if (inviteLink) {
       navigator.clipboard.writeText(inviteLink);
@@ -113,6 +113,11 @@ const QRCodeDisplay = ({ open, onClose, inviteLink, qrImage, tournamentName, isL
               <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
                 📱 Share this QR code or link with other players. They can scan it with their phone camera or paste the link in a browser to join!
               </Typography>
+              {hasPassword && (
+                <Typography variant="caption" sx={{ color: '#f44336', display: 'block', mt: 1 }}>
+                  This tournament requires a password to join. Share the password separately with invitees.
+                </Typography>
+              )}
             </Box>
           </>
         )}
