@@ -27,7 +27,6 @@ export default function Wallet() {
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={balance}
-        elo={user?.elo || 1200}
       />
 
       <Box sx={{ px: 6, py: 4, maxWidth: 700, mx: 'auto' }}>

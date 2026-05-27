@@ -10,6 +10,7 @@ import AuthNavbar from '../../components/layout/AuthNavbar'
 import FilterBar from '../../components/lobby/FilterBar'
 import TournamentRow from '../../components/lobby/TournamentRow'
 import CreateTournamentModal from '../../components/lobby/CreateTournamentModal'
+import ActiveGameBanner from '../../components/layout/ActiveGameBanner'
 
 import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
@@ -71,10 +72,11 @@ export default function Lobby() {
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={user?.walletBalance || 0}
-        elo={user?.elo?.chess || 1200}
       />
 
       <Box sx={{ px: 6, py: 4 }}>
+        <ActiveGameBanner />
+
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
           <Box>
             <Typography sx={{ fontFamily: BEBAS, fontSize: 36, letterSpacing: 3 }}>

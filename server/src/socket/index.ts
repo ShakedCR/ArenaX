@@ -45,6 +45,16 @@ interface PersistedGameState {
 const userCurrentGameRoom = new Map<string, string>();
 const reconnectTimers = new Map<string, NodeJS.Timeout>();
 
+// ── Player-abandoned callback registry ────────────────────────────────────────
+// Game-specific socket modules register a handler here so index.ts stays
+// game-agnostic while still triggering forfeit logic when a timer expires.
+type PlayerAbandonedCallback = (io: Server, gameId: string, userId: string) => Promise<void>;
+const playerAbandonedCallbacks: PlayerAbandonedCallback[] = [];
+
+export const onPlayerAbandoned = (cb: PlayerAbandonedCallback): void => {
+  playerAbandonedCallbacks.push(cb);
+};
+
 // ── Shared io accessor ────────────────────────────────────────────────────────
 // Controllers that need to emit socket events (e.g. startTournament emitting
 // blackjack:game-start) import getIO() instead of receiving io as a parameter.
@@ -131,6 +141,44 @@ export function initSocketServer(httpServer: http.Server): Server {
 
     socket.on("leave-tournament-room", (tournamentId: string) => {
       socket.leave(`tournament:${tournamentId}`);
+    });
+
+    // Explicit leave: player navigated away from the game page (socket stays connected)
+    socket.on("player:leave-game", (payload: { gameId: string }) => {
+      const { gameId } = payload;
+      if (!gameId) return;
+
+      const room = gameRoomName(gameId);
+      const key = reconnectKey(gameId, userId);
+
+      // Don't start a new timer if one is already running
+      if (reconnectTimers.has(key)) return;
+
+      userCurrentGameRoom.set(userId, gameId);
+
+      io.to(room).emit("player:disconnect", {
+        gameId,
+        userId,
+        reconnectTimeoutMs: RECONNECT_TIMEOUT_MS,
+        at: new Date().toISOString(),
+      });
+
+      const timer = setTimeout(async () => {
+        reconnectTimers.delete(key);
+        userCurrentGameRoom.delete(userId);
+        io.to(room).emit("player:reconnect-expired", {
+          gameId,
+          userId,
+          at: new Date().toISOString(),
+        });
+        for (const cb of playerAbandonedCallbacks) {
+          await cb(io, gameId, userId).catch(err =>
+            console.error("[socket] playerAbandoned callback error:", err)
+          );
+        }
+      }, RECONNECT_TIMEOUT_MS);
+
+      reconnectTimers.set(key, timer);
     });
 
     socket.on("player:join", async (payload: PlayerJoinPayload, ack?: SafeAck) => {
@@ -271,9 +319,21 @@ export function initSocketServer(httpServer: http.Server): Server {
 
       const key = reconnectKey(gameId, userId);
 
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
         reconnectTimers.delete(key);
         userCurrentGameRoom.delete(userId);
+        // Notify the game room that this player's reconnect window has expired
+        io.to(room).emit("player:reconnect-expired", {
+          gameId,
+          userId,
+          at: new Date().toISOString(),
+        });
+        // Trigger forfeit logic in game-specific handlers
+        for (const cb of playerAbandonedCallbacks) {
+          await cb(io, gameId, userId).catch(err =>
+            console.error("[socket] playerAbandoned callback error:", err)
+          );
+        }
       }, RECONNECT_TIMEOUT_MS);
 
       reconnectTimers.set(key, timer);

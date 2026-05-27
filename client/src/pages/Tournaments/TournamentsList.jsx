@@ -1,5 +1,5 @@
 import { Box, CircularProgress, Tab, Tabs, Typography } from '@mui/material'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../contexts/useAuth'
@@ -12,14 +12,10 @@ import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 import { TOURNAMENT_TABS } from '../../styles/tournamentConstants'
 
 export default function TournamentsList() {
-  const { user, refreshUser } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const { tournaments, loading } = useTournaments()
-
-  useEffect(() => {
-    refreshUser()
-  }, [refreshUser])
 
   const filteredTournaments = useMemo(() => {
     return tournaments.filter(tournament => {
@@ -34,7 +30,6 @@ export default function TournamentsList() {
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={user?.walletBalance || 0}
-        elo={user?.elo?.chess || 1200}
       />
 
       <Box sx={{ px: 6, py: 4 }}>

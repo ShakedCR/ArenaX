@@ -12,9 +12,11 @@ const NAV_ITEMS = [
   { label: 'Wallet', path: '/wallet' }
 ]
 
-function AuthNavbar({ username = 'Player', tokens = 0, elo = 1200 }) {
+function AuthNavbar({ username = 'Player', tokens = 0 }) {
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
+
+  const displayElo = user?.elo?.blackjack ?? 1200
 
   const handleLogout = () => {
     logout()
@@ -59,7 +61,7 @@ function AuthNavbar({ username = 'Player', tokens = 0, elo = 1200 }) {
         </Typography>
 
         <Typography sx={{ color: '#aaa', fontSize: 13 }}>
-          Elo: <span style={{ color: GOLD }}>{elo}</span>
+          Elo: <span style={{ color: GOLD }}>{displayElo}</span>
         </Typography>
 
         <Button

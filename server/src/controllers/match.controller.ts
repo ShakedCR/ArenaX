@@ -125,16 +125,22 @@ export const getTournamentStandings = async (req: AuthRequest, res: Response) =>
       }
     }
 
-    // For the current active match, get live leaderboard from BlackjackGameState
+    // For the current active match, get live leaderboard and round from BlackjackGameState
     const currentGameId = tournament.matchData?.currentGameId;
+    let currentRound: number | null = null;
+    let totalRounds: number | null = null;
     if (currentGameId) {
       const liveState = await BlackjackGameStateModel.findOne({ gameId: currentGameId })
-        .select("leaderboard")
+        .select("leaderboard stateSnapshot")
         .lean() as any;
       if (liveState?.leaderboard) {
         for (const entry of liveState.leaderboard) {
           playerScore.set(entry.playerId, entry.tokens);
         }
+      }
+      if (liveState?.stateSnapshot) {
+        currentRound = liveState.stateSnapshot.currentRound ?? null;
+        totalRounds = liveState.stateSnapshot.totalRounds ?? null;
       }
     }
 
@@ -197,6 +203,8 @@ export const getTournamentStandings = async (req: AuthRequest, res: Response) =>
         gameTitle: tournament.gameTitle,
         status: tournament.status,
         currentStage,
+        currentRound,
+        totalRounds,
         prizePool: tournament.prizePool,
         startDate: tournament.startDate,
         maxParticipants: tournament.maxParticipants,

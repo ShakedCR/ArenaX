@@ -109,7 +109,7 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
         gameTitle: form.gameTitle,
         entryFee: Number(form.entryFee),
         maxParticipants: Number(form.maxParticipants),
-        format: 'round_robin',
+        format: 'single_elimination',
         startDate: new Date(),
         isPrivate: form.type === 'private',
         privatePassword: form.type === 'private' ? form.privatePassword : undefined

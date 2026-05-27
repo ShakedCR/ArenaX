@@ -134,7 +134,7 @@ export default function ProfileHeader({
             py: 0.5
           }}>
             <Typography sx={{ color: GOLD, fontSize: 13 }}>
-              Elo {user?.elo || 1200}
+              Elo {user?.elo?.blackjack || 1200}
             </Typography>
           </Box>
 

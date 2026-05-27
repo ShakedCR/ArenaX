@@ -57,9 +57,11 @@ export default function WaitingRoom() {
     if (!userId) return
     const sock = connectSocket(localStorage.getItem('token'))
 
-    sock.emit('join-tournament-room', id)
+    const joinRoom = () => sock.emit('join-tournament-room', id)
+    joinRoom()
+    sock.on('connect', joinRoom)
 
-    sock.on('tournament:participant-added', (data) => {
+    const handleParticipantAdded = (data) => {
       if (data.tournamentId !== id) return
       setTournament(prev => {
         if (!prev) return prev
@@ -69,16 +71,20 @@ export default function WaitingRoom() {
         if (alreadyIn) return prev
         return { ...prev, participants: [...(prev.participants || []), data.participant] }
       })
-    })
+    }
 
-    sock.on('blackjack:tournament-started', (data) => {
+    const handleTournamentStarted = (data) => {
       navigate(`/game/blackjack/${data.gameId}`)
-    })
+    }
+
+    sock.on('tournament:participant-added', handleParticipantAdded)
+    sock.on('blackjack:tournament-started', handleTournamentStarted)
 
     return () => {
       sock.emit('leave-tournament-room', id)
-      sock.off('tournament:participant-added')
-      sock.off('blackjack:tournament-started')
+      sock.off('connect', joinRoom)
+      sock.off('tournament:participant-added', handleParticipantAdded)
+      sock.off('blackjack:tournament-started', handleTournamentStarted)
     }
   }, [id, userId, navigate])
 
@@ -120,7 +126,6 @@ export default function WaitingRoom() {
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={user?.walletBalance || 0}
-        elo={user?.elo?.chess || 1200}
       />
 
       <Box sx={{ maxWidth: 600, mx: 'auto', py: 8, px: 4 }}>

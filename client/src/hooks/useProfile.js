@@ -65,9 +65,12 @@ export default function useProfile() {
       tournament => tournament.gameTitle === gameTitle
     )
 
-    const wins = gameTournaments.filter(
-      tournament => tournament.result?.winner === userId
-    ).length
+    const wins = gameTournaments.filter(tournament => {
+      const winner = tournament.result?.winner
+      if (!winner) return false
+      const winnerId = winner._id ?? winner
+      return winnerId.toString() === userId?.toString()
+    }).length
 
     return {
       total: gameTournaments.length,
