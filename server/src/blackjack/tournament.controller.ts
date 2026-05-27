@@ -7,7 +7,7 @@ import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { getIO } from "../socket";
 import { getAdvancingCount } from "../utils/tournament.utils";
-import { createBlackjackGame, generateUniqueInviteCode } from "../services/tournament.game.service";
+import { createBlackjackGame, generateUniqueInviteCode } from "./game.service";
 
 const isTournamentCreator = (createdBy: Types.ObjectId | string, userId: string): boolean =>
   createdBy.toString() === userId;

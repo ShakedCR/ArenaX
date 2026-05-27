@@ -5,8 +5,8 @@ import { Types } from "mongoose";
 import { AuthRequest } from "../middleware/auth.middleware";
 import User from "../models/user.model";
 import { GamePlayer } from "../games/IGameEngine";
-import { blackjackEngine, BlackjackGameState, BlackjackMove } from "../games/blackjack.engine";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import { blackjackEngine, BlackjackGameState, BlackjackMove } from "../blackjack/engine";
+import BlackjackGameStateModel from "../blackjack/game-state.model";
 
 const isValidBlackjackMove = (move: string): move is BlackjackMove =>
   move === "hit" || move === "stand" || move === "double" || move === "split";

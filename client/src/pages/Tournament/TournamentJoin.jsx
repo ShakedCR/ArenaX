@@ -13,8 +13,6 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const gameIcons = {
   Blackjack: '♠',
-  Chess: '♟',
-  Checkers: '⬤'
 }
 
 export default function TournamentJoin() {

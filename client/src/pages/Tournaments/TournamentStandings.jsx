@@ -12,7 +12,7 @@ const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
 const BEBAS = "'Bebas Neue', sans-serif"
 
-const gameIcons = { Blackjack: '♠', Chess: '♟', Checkers: '⬤' }
+const gameIcons = { Blackjack: '♠' }
 
 export default function TournamentStandings() {
   const { id } = useParams()

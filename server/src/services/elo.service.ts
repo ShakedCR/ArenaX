@@ -1,14 +1,12 @@
 import { Server } from "socket.io";
 import User from "../models/user.model";
-import { blackjackEngine } from "../games/blackjack.engine";
+import { blackjackEngine } from "../blackjack/engine";
 import { calculateMultiplayerElo, EloResult } from "../utils/elo.utils";
 
-type SupportedGame = "blackjack" | "chess" | "checkers";
+type SupportedGame = "blackjack";
 
 const engineMap: Record<SupportedGame, { getLeaderboard: (gameId: string) => { playerId: string; rank: number }[] }> = {
   blackjack: blackjackEngine,
-  chess: blackjackEngine,     // TODO: replace with chessEngine when implemented
-  checkers: blackjackEngine,  // TODO: replace with checkersEngine when implemented
 };
 
 /**
@@ -30,7 +28,7 @@ export const updateEloAfterGame = async (
 
   const users = await User.find({ _id: { $in: playerIds } })
     .select("_id elo")
-    .lean() as { _id: any; elo?: { blackjack?: number; chess?: number; checkers?: number } }[];
+    .lean() as { _id: any; elo?: { blackjack?: number } }[];
 
   const inputs = leaderboard.map(entry => ({
     playerId: entry.playerId,

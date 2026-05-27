@@ -1,11 +1,11 @@
 /**
- * blackjack.utils.ts — Pure card and deck utilities for Blackjack.
+ * utils.ts — Pure card and deck utilities for Blackjack.
  *
  * No game-state side-effects here. Anything that works solely on cards/arrays
  * lives here so the engine class stays focused on game flow and turn management.
  */
 
-import type { Card } from "./blackjack.types";
+import type { Card } from "./types";
 
 // ── Deck constants ─────────────────────────────────────────────────────────────
 

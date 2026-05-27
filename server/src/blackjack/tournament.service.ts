@@ -1,19 +1,19 @@
 /**
- * blackjack.tournament.service.ts
+ * tournament.service.ts
  *
  * Tournament stage-progression logic for Blackjack.
- * Extracted from blackjack.socket.ts so the socket file stays focused on
+ * Extracted from socket.ts so the socket file stays focused on
  * real-time event handling, and this file owns tournament lifecycle concerns
  * (prize distribution, stage creation, match finalization).
  */
 
 import { Server } from "socket.io";
 import { Types } from "mongoose";
-import { blackjackEngine, BlackjackGameState } from "../games/blackjack.engine";
+import { blackjackEngine, BlackjackGameState } from "./engine";
 import { getAdvancingCount } from "../utils/tournament.utils";
-import { updateEloAfterGame } from "./elo.service";
+import { updateEloAfterGame } from "../services/elo.service";
 import { getIO } from "../socket";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import BlackjackGameStateModel from "./game-state.model";
 import Match from "../models/match.model";
 import Tournament from "../models/tournament.model";
 import User from "../models/user.model";

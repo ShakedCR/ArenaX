@@ -1,4 +1,4 @@
-import { Hand, PlayerState } from "./blackjack.types";
+import { Hand, PlayerState } from "./types";
 
 /**
  * Returns how many extra tokens the player has committed beyond their initial bet

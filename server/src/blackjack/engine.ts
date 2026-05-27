@@ -1,25 +1,12 @@
-import { IGameEngine, GamePlayer, GameResult } from "./IGameEngine";
-import {
-  buildDeck,
-  handValue,
-  isBust,
-  isBlackjack,
-  isSoftSeventeen,
-} from "./blackjack.utils";
-import {
-  canSplit,
-  canDouble,
-  syncActiveHand,
-  createHand,
-} from "./blackjack.hand-helpers";
+import { IGameEngine, GamePlayer, GameResult } from "../games/IGameEngine";
+import { buildDeck, handValue, isBust, isBlackjack, isSoftSeventeen } from "./utils";
+import { canSplit, canDouble, syncActiveHand, createHand } from "./hand-helpers";
 
-// Re-export types so existing imports from blackjack.engine stay valid
-export type { Card, Hand, PlayerState, BlackjackGameState, BlackjackMove } from "./blackjack.types";
+// Re-export types so existing imports from this module stay valid
+export type { Card, Hand, PlayerState, BlackjackGameState, BlackjackMove } from "./types";
+export { handValue } from "./utils";
 
-// Re-export handValue so existing imports from blackjack.engine stay valid
-export { handValue } from "./blackjack.utils";
-
-import type { Card, PlayerState, BlackjackGameState, BlackjackMove } from "./blackjack.types";
+import type { Card, PlayerState, BlackjackGameState, BlackjackMove } from "./types";
 
 const TOTAL_ROUNDS = 5;
 const STARTING_TOKENS = 1000;
@@ -286,7 +273,6 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
     const dealerBJ = isBlackjack(state.dealerCards);
 
     for (const ps of state.playerStates) {
-      // Forfeited players already have tokens=0 and status=done — skip payout
       if (ps.forfeited) {
         for (const hand of ps.hands) hand.status = "done";
         syncActiveHand(ps);
@@ -338,9 +324,6 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
     const winners = sorted.filter(ps => ps.tokens === topTokens && ps.tokens > 0);
 
     state.isOver = true;
-    // Keep phase as "round-over" so broadcastState can show the dealer reveal
-    // before transitioning to game-over. The socket layer reads isOver to know
-    // it should emit game-over after the round-result delay.
     state.result = {
       winnerId: winners.length === 1 ? winners[0].playerId : null,
       winnerIds: winners.map(ps => ps.playerId),
@@ -354,16 +337,6 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
 
   // ── Public API ───────────────────────────────────────────────────────────────
 
-  /**
-   * Called when a player's reconnect window expires.
-   *
-   * Always zeros the player's tokens immediately and marks them forfeited.
-   * - If ≤1 active player remains → end the game right now (no more rounds).
-   * - If 2+ active players remain → continue without this player:
-   *     • mid-round & their turn  → force-stand and advance to next player
-   *     • mid-round & not their turn → marked done; advanceTurn will skip them
-   *     • between rounds          → they simply won't be dealt in next round
-   */
   forfeitPlayer(gameId: string, playerId: string): BlackjackGameState {
     const state = this.getState(gameId);
     if (state.isOver) return state;
@@ -371,7 +344,6 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
     const ps = state.playerStates.find(p => p.playerId === playerId);
     if (!ps || ps.tokens <= 0) return state;
 
-    // Zero tokens and mark all hands done immediately
     ps.tokens = 0;
     ps.forfeited = true;
     ps.status = "done";
@@ -383,13 +355,11 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
     const remaining = state.playerStates.filter(p => p.tokens > 0);
 
     if (remaining.length <= 1) {
-      // 2-player game (or last player standing) → end immediately, no more rounds
       this.finalizeGame(gameId);
       this.games.set(gameId, state);
       return this.getState(gameId);
     }
 
-    // 3+ players remain — continue the round without the forfeited player
     if (state.roundActive && state.playerStates[state.currentPlayerIndex]?.playerId === playerId) {
       this.games.set(gameId, state);
       this.advanceTurn(state);

@@ -1,5 +1,5 @@
 /**
- * tournament.game.service.ts
+ * game.service.ts
  *
  * Helpers used by the tournament controller that deal with game creation and
  * invite-code management. Extracted so the controller stays focused on
@@ -7,8 +7,8 @@
  */
 
 import { Types } from "mongoose";
-import { blackjackEngine } from "../games/blackjack.engine";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import { blackjackEngine } from "./engine";
+import BlackjackGameStateModel from "./game-state.model";
 import Match from "../models/match.model";
 import Tournament from "../models/tournament.model";
 import User from "../models/user.model";

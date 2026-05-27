@@ -1,10 +1,8 @@
 import { Server } from "socket.io";
 import http from "http";
 import jwt from "jsonwebtoken";
-import { setupBlackjackSocket } from "./blackjack.socket";
-import { setupChessSocket } from "./chess.socket";
-import { setupCheckersSocket } from "./checkers.socket";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import { setupBlackjackSocket } from "../blackjack/socket";
+import BlackjackGameStateModel from "../blackjack/game-state.model";
 
 const RECONNECT_TIMEOUT_MS = 60_000;
 
@@ -341,8 +339,6 @@ export function initSocketServer(httpServer: http.Server): Server {
   });
 
   setupBlackjackSocket(io);
-  setupChessSocket(io);
-  setupCheckersSocket(io);
 
   return io;
 }

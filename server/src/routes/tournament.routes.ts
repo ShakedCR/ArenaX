@@ -13,7 +13,7 @@ import {
   getTournamentByInviteCode,
   joinTournamentByInviteCode,
   regenerateTournamentInviteCode
-} from "../controllers/blackjack.tournament.controller";
+} from "../blackjack/tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();

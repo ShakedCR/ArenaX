@@ -11,20 +11,16 @@ export default function WalletBalanceCard({ balance }) {
       mb: 3,
       textAlign: 'center'
     }}>
-      <Typography sx={{ color: '#888', fontSize: 13, mb: 1 }}>
+      <Typography sx={{ color: '#888', fontSize: 12, letterSpacing: 3, textTransform: 'uppercase', mb: 3 }}>
         Token Balance
       </Typography>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
-        <Typography sx={{ color: GOLD, fontSize: 36 }}>⬡</Typography>
-        <Typography sx={{ fontFamily: BEBAS, fontSize: 56, color: GOLD, letterSpacing: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: 1, mr: 3 }}>
+        <Typography sx={{ color: GOLD, fontFamily: BEBAS, fontSize: 32, lineHeight: 1 }}>⬡</Typography>
+        <Typography sx={{ fontFamily: BEBAS, fontSize: 72, color: GOLD, letterSpacing: 2, lineHeight: 1 }}>
           {balance.toLocaleString()}
         </Typography>
       </Box>
-
-      <Typography sx={{ color: '#666', fontSize: 13 }}>
-        Tokens
-      </Typography>
     </Box>
   )
 }

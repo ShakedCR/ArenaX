@@ -1,8 +1,8 @@
 import { Server, Socket } from "socket.io";
-import { blackjackEngine, BlackjackMove, BlackjackGameState, handValue } from "../games/blackjack.engine";
-import { finalizeMatch, handleTournamentStageEnd } from "../services/blackjack.tournament.service";
+import { blackjackEngine, BlackjackMove, BlackjackGameState, handValue } from "./engine";
+import { finalizeMatch, handleTournamentStageEnd } from "./tournament.service";
 import { onPlayerAbandoned } from "../socket";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import BlackjackGameStateModel from "./game-state.model";
 import Match from "../models/match.model";
 
 const PLAYER_TIMEOUT_MS = 60_000;

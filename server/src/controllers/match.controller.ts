@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import Match from "../models/match.model";
 import Tournament from "../models/tournament.model";
 import { AuthRequest } from "../middleware/auth.middleware";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import BlackjackGameStateModel from "../blackjack/game-state.model";
 
 export const getTournamentMatches = async (req: AuthRequest, res: Response) => {
   try {
