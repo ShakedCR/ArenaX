@@ -5,6 +5,7 @@ import { setupBlackjackSocket } from "./blackjack.socket";
 import { setupChessSocket } from "./chess.socket";
 import { setupCheckersSocket } from "./checkers.socket";
 import BlackjackGameStateModel from "../models/blackjack-game-state.model";
+import { setupTriviaSocket } from "./trivia.socket";
 
 const RECONNECT_TIMEOUT_MS = 60_000;
 
@@ -283,6 +284,7 @@ export function initSocketServer(httpServer: http.Server): Server {
   setupBlackjackSocket(io);
   setupChessSocket(io);
   setupCheckersSocket(io);
+  setupTriviaSocket(io);
 
   return io;
 }

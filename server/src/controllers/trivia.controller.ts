@@ -4,8 +4,11 @@ import Tournament from "../models/tournament.model";
 import TriviaGame from "../models/trivia-game.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { generateTriviaQuestionsWithAI } from "../services/ai-trivia-question.service";
+import { getIO } from "../socket";
 
 const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
+
+const triviaRoomName = (triviaGameId: string): string => `trivia:${triviaGameId}`;
 
 const topicSuggestions = [
   "Cyber Security",
@@ -58,11 +61,14 @@ const calculateScore = (
     (maxTimeMs - safeResponseTime) / maxTimeMs
   );
 
-  const baseScore = 500;
-  const speedBonus = Math.round(500 * remainingRatio);
-
-  return baseScore + speedBonus;
+  return 500 + Math.round(500 * remainingRatio);
 };
+
+const buildPublicQuestion = (question: any, questionIndex: number) => ({
+  questionIndex,
+  question: question.question,
+  answers: question.answers
+});
 
 const buildPublicQuestions = (questions: any[], revealAnswers = false) => {
   return questions.map((question) => ({
@@ -75,10 +81,7 @@ const buildPublicQuestions = (questions: any[], revealAnswers = false) => {
 
 const buildRankedLeaderboard = (leaderboard: any[]) => {
   const sorted = [...leaderboard].sort((a, b) => {
-    if (b.totalScore !== a.totalScore) {
-      return b.totalScore - a.totalScore;
-    }
-
+    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
     if (b.correctAnswers !== a.correctAnswers) {
       return b.correctAnswers - a.correctAnswers;
     }
@@ -211,7 +214,8 @@ export const createTriviaTournament = async (
       maxParticipants: safeMaxParticipants,
       startDate: new Date(),
       createdBy: req.userId,
-      participants: [],
+      // Auto join creator to trivia participants
+      participants: [new Types.ObjectId(req.userId)],
       status: "draft",
       isPrivate: isPrivate ?? false,
       privatePassword: isPrivate ? String(privatePassword) : "",
@@ -332,6 +336,16 @@ export const startTriviaGame = async (req: AuthRequest, res: Response) => {
 
     await triviaGame.save();
     await tournament.save();
+
+    const currentQuestion = triviaGame.questions[0];
+
+    getIO().to(triviaRoomName(triviaGameId)).emit("trivia:question-started", {
+      triviaGameId,
+      currentQuestionIndex: 0,
+      timePerQuestion: triviaGame.timePerQuestion,
+      question: buildPublicQuestion(currentQuestion, 0),
+      at: new Date().toISOString()
+    });
 
     return res.status(200).json({
       message: "Trivia game started successfully",
@@ -461,11 +475,8 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
 
       existingScore.totalScore += scoreEarned;
 
-      if (isCorrect) {
-        existingScore.correctAnswers += 1;
-      } else {
-        existingScore.wrongAnswers += 1;
-      }
+      if (isCorrect) existingScore.correctAnswers += 1;
+      else existingScore.wrongAnswers += 1;
 
       const newAnswerCount =
         existingScore.correctAnswers + existingScore.wrongAnswers;
@@ -485,6 +496,14 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
 
     await triviaGame.save();
 
+    const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+
+    getIO().to(triviaRoomName(triviaGameId)).emit("trivia:leaderboard-updated", {
+      triviaGameId,
+      leaderboard,
+      at: new Date().toISOString()
+    });
+
     return res.status(200).json({
       message: "Answer submitted successfully",
       isCorrect,
@@ -493,7 +512,7 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
       correctAnswerIndex: currentQuestion.correctAnswerIndex,
       correctAnswer: currentQuestion.answers[currentQuestion.correctAnswerIndex],
       explanation: currentQuestion.explanation,
-      leaderboard: buildRankedLeaderboard(triviaGame.leaderboard)
+      leaderboard
     });
   } catch (error) {
     console.error("Submit trivia answer error:", error);
@@ -552,14 +571,32 @@ export const nextTriviaQuestion = async (req: AuthRequest, res: Response) => {
       await triviaGame.save();
       await tournament.save();
 
+      const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+
+      getIO().to(triviaRoomName(triviaGameId)).emit("trivia:game-completed", {
+        triviaGameId,
+        leaderboard,
+        at: new Date().toISOString()
+      });
+
       return res.status(200).json({
         message: "Trivia game completed",
-        leaderboard: buildRankedLeaderboard(triviaGame.leaderboard)
+        leaderboard
       });
     }
 
     triviaGame.currentQuestionIndex += 1;
     await triviaGame.save();
+
+    const nextQuestion = triviaGame.questions[triviaGame.currentQuestionIndex];
+
+    getIO().to(triviaRoomName(triviaGameId)).emit("trivia:question-started", {
+      triviaGameId,
+      currentQuestionIndex: triviaGame.currentQuestionIndex,
+      timePerQuestion: triviaGame.timePerQuestion,
+      question: buildPublicQuestion(nextQuestion, triviaGame.currentQuestionIndex),
+      at: new Date().toISOString()
+    });
 
     return res.status(200).json({
       message: "Moved to next question",
