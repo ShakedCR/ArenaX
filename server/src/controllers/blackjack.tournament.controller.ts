@@ -108,7 +108,7 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
     const tournament = await Tournament.create({
       title, description, inviteCode, gameTitle, gameMode, platform, format,
       entryFee: entryFee ?? 0, prizePool: prizePool ?? 0, maxParticipants,
-      startDate, endDate, settings, createdBy: req.userId, participants: [],
+      startDate, endDate, settings, createdBy: req.userId, participants: [new Types.ObjectId(req.userId)],
       status: "draft", isPrivate: isPrivate ?? false,
       privatePassword: isPrivate ? String(privatePassword) : ""
     });
