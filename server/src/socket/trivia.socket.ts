@@ -2,6 +2,11 @@ import { Server, Socket } from "socket.io";
 import { Types } from "mongoose";
 import TriviaGame from "../models/trivia-game.model";
 import Tournament from "../models/tournament.model";
+import {
+  clearTriviaTimers,
+  endCurrentTriviaQuestion,
+  startTriviaQuestionTimer
+} from "../services/trivia-timer.service";
 
 type SafeAck = (payload: {
   ok: boolean;
@@ -36,7 +41,10 @@ const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
 const buildRankedLeaderboard = (leaderboard: any[]) => {
   const sorted = [...leaderboard].sort((a, b) => {
     if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    if (b.correctAnswers !== a.correctAnswers) return b.correctAnswers - a.correctAnswers;
+    if (b.correctAnswers !== a.correctAnswers) {
+      return b.correctAnswers - a.correctAnswers;
+    }
+
     return a.averageResponseTimeMs - b.averageResponseTimeMs;
   });
 
@@ -66,12 +74,6 @@ const calculateScore = (
 
   return baseScore + speedBonus;
 };
-
-const buildPublicQuestion = (question: any, questionIndex: number) => ({
-  questionIndex,
-  question: question.question,
-  answers: question.answers
-});
 
 export const setupTriviaSocket = (io: Server): void => {
   io.on("connection", (socket: Socket) => {
@@ -146,7 +148,6 @@ export const setupTriviaSocket = (io: Server): void => {
       }
 
       socket.leave(triviaRoomName(triviaGameId));
-
       ack?.({ ok: true });
     });
 
@@ -179,7 +180,10 @@ export const setupTriviaSocket = (io: Server): void => {
         }
 
         if (triviaGame.status !== "waiting") {
-          ack?.({ ok: false, message: "Trivia game already started or completed" });
+          ack?.({
+            ok: false,
+            message: "Trivia game already started or completed"
+          });
           return;
         }
 
@@ -192,15 +196,7 @@ export const setupTriviaSocket = (io: Server): void => {
         await triviaGame.save();
         await tournament.save();
 
-        const currentQuestion = triviaGame.questions[0];
-
-        io.to(triviaRoomName(triviaGameId)).emit("trivia:question-started", {
-          triviaGameId,
-          currentQuestionIndex: 0,
-          timePerQuestion: triviaGame.timePerQuestion,
-          question: buildPublicQuestion(currentQuestion, 0),
-          at: new Date().toISOString()
-        });
+        await startTriviaQuestionTimer(io, triviaGameId);
 
         ack?.({ ok: true });
       } catch (error) {
@@ -330,8 +326,11 @@ export const setupTriviaSocket = (io: Server): void => {
 
             existingScore.totalScore += scoreEarned;
 
-            if (isCorrect) existingScore.correctAnswers += 1;
-            else existingScore.wrongAnswers += 1;
+            if (isCorrect) {
+              existingScore.correctAnswers += 1;
+            } else {
+              existingScore.wrongAnswers += 1;
+            }
 
             const newAnswerCount =
               existingScore.correctAnswers + existingScore.wrongAnswers;
@@ -360,7 +359,8 @@ export const setupTriviaSocket = (io: Server): void => {
             scoreEarned,
             selectedAnswerIndex,
             correctAnswerIndex: currentQuestion.correctAnswerIndex,
-            correctAnswer: currentQuestion.answers[currentQuestion.correctAnswerIndex],
+            correctAnswer:
+              currentQuestion.answers[currentQuestion.correctAnswerIndex],
             explanation: currentQuestion.explanation,
             at: new Date().toISOString()
           });
@@ -411,7 +411,10 @@ export const setupTriviaSocket = (io: Server): void => {
           }
 
           if (tournament.createdBy.toString() !== userId) {
-            ack?.({ ok: false, message: "Only creator can move to next question" });
+            ack?.({
+              ok: false,
+              message: "Only creator can manually end current question"
+            });
             return;
           }
 
@@ -420,50 +423,22 @@ export const setupTriviaSocket = (io: Server): void => {
             return;
           }
 
-          const isLastQuestion =
-            triviaGame.currentQuestionIndex >= triviaGame.questions.length - 1;
-
-          if (isLastQuestion) {
-            triviaGame.status = "completed";
-            triviaGame.completedAt = new Date();
-            tournament.status = "completed";
-
-            await triviaGame.save();
-            await tournament.save();
-
-            io.to(triviaRoomName(triviaGameId)).emit("trivia:game-completed", {
-              triviaGameId,
-              leaderboard: buildRankedLeaderboard(triviaGame.leaderboard),
-              at: new Date().toISOString()
-            });
-
-            ack?.({ ok: true });
-            return;
-          }
-
-          triviaGame.currentQuestionIndex += 1;
-          await triviaGame.save();
-
-          const nextQuestion =
-            triviaGame.questions[triviaGame.currentQuestionIndex];
-
-          io.to(triviaRoomName(triviaGameId)).emit("trivia:question-started", {
-            triviaGameId,
-            currentQuestionIndex: triviaGame.currentQuestionIndex,
-            timePerQuestion: triviaGame.timePerQuestion,
-            question: buildPublicQuestion(
-              nextQuestion,
-              triviaGame.currentQuestionIndex
-            ),
-            at: new Date().toISOString()
-          });
+          /*
+            Manual override flow:
+            1. Clear automatic timer
+            2. End current question immediately
+            3. Emit answer reveal + leaderboard
+            4. Auto move to next question after reveal delay
+          */
+          clearTriviaTimers(triviaGameId);
+          await endCurrentTriviaQuestion(io, triviaGameId);
 
           ack?.({ ok: true });
         } catch (error) {
           console.error("trivia:next-question error:", error);
           ack?.({
             ok: false,
-            message: "Server error while moving to next question"
+            message: "Server error while manually ending current question"
           });
         }
       }
