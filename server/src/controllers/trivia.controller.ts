@@ -20,6 +20,22 @@ const topicSuggestions = [
   "General Knowledge"
 ];
 
+const categorySuggestions = [
+  "General",
+  "Cyber Security",
+  "Network Security",
+  "Web Security",
+  "Movies",
+  "Gaming",
+  "Sports",
+  "Football",
+  "History",
+  "Science",
+  "Technology",
+  "Music",
+  "Custom"
+];
+
 const generateInviteCode = (): string => {
   const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
   const timePart = Date.now().toString(36).slice(-4).toUpperCase();
@@ -81,7 +97,8 @@ export const getTriviaTopicSuggestions = async (
   res: Response
 ) => {
   return res.status(200).json({
-    topics: topicSuggestions
+    topics: topicSuggestions,
+    categories: categorySuggestions
   });
 };
 
@@ -94,6 +111,7 @@ export const createTriviaTournament = async (
       title,
       description,
       topic,
+      category,
       difficulty,
       questionCount,
       timePerQuestion,
@@ -115,10 +133,17 @@ export const createTriviaTournament = async (
     }
 
     const safeTopic = String(topic).trim();
+    const safeCategory = category ? String(category).trim() : "General";
 
     if (safeTopic.length < 2 || safeTopic.length > 120) {
       return res.status(400).json({
         message: "Topic must be between 2 and 120 characters"
+      });
+    }
+
+    if (safeCategory.length < 2 || safeCategory.length > 80) {
+      return res.status(400).json({
+        message: "Category must be between 2 and 80 characters"
       });
     }
 
@@ -148,10 +173,7 @@ export const createTriviaTournament = async (
 
     const safeMaxParticipants = Number(maxParticipants);
 
-    if (
-      !Number.isInteger(safeMaxParticipants) ||
-      safeMaxParticipants < 1
-    ) {
+    if (!Number.isInteger(safeMaxParticipants) || safeMaxParticipants < 1) {
       return res.status(400).json({
         message: "maxParticipants must be a positive number"
       });
@@ -172,6 +194,7 @@ export const createTriviaTournament = async (
 
     const questions = await generateTriviaQuestionsWithAI({
       topic: safeTopic,
+      category: safeCategory,
       difficulty: safeDifficulty,
       questionCount: safeQuestionCount
     });
@@ -198,6 +221,7 @@ export const createTriviaTournament = async (
     const triviaGame = await TriviaGame.create({
       tournament: tournament._id,
       topic: safeTopic,
+      category: safeCategory,
       difficulty: safeDifficulty,
       questionCount: safeQuestionCount,
       timePerQuestion: safeTimePerQuestion,
@@ -465,6 +489,10 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
       message: "Answer submitted successfully",
       isCorrect,
       scoreEarned,
+      selectedAnswerIndex,
+      correctAnswerIndex: currentQuestion.correctAnswerIndex,
+      correctAnswer: currentQuestion.answers[currentQuestion.correctAnswerIndex],
+      explanation: currentQuestion.explanation,
       leaderboard: buildRankedLeaderboard(triviaGame.leaderboard)
     });
   } catch (error) {
