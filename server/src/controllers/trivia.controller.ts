@@ -3,6 +3,7 @@ import { Types } from "mongoose";
 import Tournament from "../models/tournament.model";
 import TriviaGame from "../models/trivia-game.model";
 import { AuthRequest } from "../middleware/auth.middleware";
+import { generateTriviaQuestionsWithAI } from "../services/ai-trivia-question.service";
 
 const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
 
@@ -19,21 +20,11 @@ const topicSuggestions = [
   "General Knowledge"
 ];
 
-const generateMockQuestions = (
-  topic: string,
-  questionCount: number
-) => {
-  return Array.from({ length: questionCount }).map((_, index) => ({
-    question: `Sample question ${index + 1} about ${topic}?`,
-    answers: [
-      `Correct answer ${index + 1}`,
-      `Wrong answer A ${index + 1}`,
-      `Wrong answer B ${index + 1}`,
-      `Wrong answer C ${index + 1}`
-    ],
-    correctAnswerIndex: 0,
-    explanation: `This is a sample explanation for question ${index + 1}.`
-  }));
+const generateInviteCode = (): string => {
+  const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const timePart = Date.now().toString(36).slice(-4).toUpperCase();
+
+  return `${randomPart}${timePart}`;
 };
 
 const calculateScore = (
@@ -81,7 +72,7 @@ const buildRankedLeaderboard = (leaderboard: any[]) => {
 
   return sorted.map((item, index) => ({
     rank: index + 1,
-    ...item.toObject?.() ?? item
+    ...(item.toObject?.() ?? item)
   }));
 };
 
@@ -123,7 +114,9 @@ export const createTriviaTournament = async (
       });
     }
 
-    if (String(topic).trim().length < 2 || String(topic).trim().length > 120) {
+    const safeTopic = String(topic).trim();
+
+    if (safeTopic.length < 2 || safeTopic.length > 120) {
       return res.status(400).json({
         message: "Topic must be between 2 and 120 characters"
       });
@@ -131,7 +124,11 @@ export const createTriviaTournament = async (
 
     const safeQuestionCount = Number(questionCount);
 
-    if (!Number.isInteger(safeQuestionCount) || safeQuestionCount < 1 || safeQuestionCount > 50) {
+    if (
+      !Number.isInteger(safeQuestionCount) ||
+      safeQuestionCount < 1 ||
+      safeQuestionCount > 50
+    ) {
       return res.status(400).json({
         message: "questionCount must be between 1 and 50"
       });
@@ -149,11 +146,35 @@ export const createTriviaTournament = async (
       });
     }
 
-    if (isPrivate === true && (!privatePassword || String(privatePassword).trim() === "")) {
+    const safeMaxParticipants = Number(maxParticipants);
+
+    if (
+      !Number.isInteger(safeMaxParticipants) ||
+      safeMaxParticipants < 1
+    ) {
+      return res.status(400).json({
+        message: "maxParticipants must be a positive number"
+      });
+    }
+
+    if (
+      isPrivate === true &&
+      (!privatePassword || String(privatePassword).trim() === "")
+    ) {
       return res.status(400).json({
         message: "Private trivia tournaments must include a privatePassword"
       });
     }
+
+    const safeDifficulty = ["easy", "medium", "hard"].includes(difficulty)
+      ? difficulty
+      : "medium";
+
+    const questions = await generateTriviaQuestionsWithAI({
+      topic: safeTopic,
+      difficulty: safeDifficulty,
+      questionCount: safeQuestionCount
+    });
 
     const tournament = await Tournament.create({
       title,
@@ -164,25 +185,20 @@ export const createTriviaTournament = async (
       format: "league",
       entryFee: entryFee ?? 0,
       prizePool: 0,
-      maxParticipants,
+      maxParticipants: safeMaxParticipants,
       startDate: new Date(),
       createdBy: req.userId,
       participants: [],
       status: "draft",
       isPrivate: isPrivate ?? false,
       privatePassword: isPrivate ? String(privatePassword) : "",
-      inviteCode: `${Math.random().toString(36).substring(2, 8).toUpperCase()}${Date.now()
-        .toString(36)
-        .slice(-4)
-        .toUpperCase()}`
+      inviteCode: generateInviteCode()
     });
-
-    const questions = generateMockQuestions(String(topic).trim(), safeQuestionCount);
 
     const triviaGame = await TriviaGame.create({
       tournament: tournament._id,
-      topic: String(topic).trim(),
-      difficulty: difficulty || "medium",
+      topic: safeTopic,
+      difficulty: safeDifficulty,
       questionCount: safeQuestionCount,
       timePerQuestion: safeTimePerQuestion,
       status: "waiting",
@@ -199,6 +215,7 @@ export const createTriviaTournament = async (
     });
   } catch (error) {
     console.error("Create trivia tournament error:", error);
+
     return res.status(500).json({
       message: "Server error while creating trivia tournament"
     });
@@ -234,6 +251,7 @@ export const getTriviaGameByTournament = async (
     });
   } catch (error) {
     console.error("Get trivia game error:", error);
+
     return res.status(500).json({
       message: "Server error while fetching trivia game"
     });
@@ -297,6 +315,7 @@ export const startTriviaGame = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Start trivia game error:", error);
+
     return res.status(500).json({
       message: "Server error while starting trivia game"
     });
@@ -410,7 +429,9 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
     );
 
     if (existingScore) {
-      const previousAnswers = existingScore.correctAnswers + existingScore.wrongAnswers;
+      const previousAnswers =
+        existingScore.correctAnswers + existingScore.wrongAnswers;
+
       const previousTotalResponseTime =
         existingScore.averageResponseTimeMs * previousAnswers;
 
@@ -422,7 +443,9 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
         existingScore.wrongAnswers += 1;
       }
 
-      const newAnswerCount = existingScore.correctAnswers + existingScore.wrongAnswers;
+      const newAnswerCount =
+        existingScore.correctAnswers + existingScore.wrongAnswers;
+
       existingScore.averageResponseTimeMs = Math.round(
         (previousTotalResponseTime + safeResponseTimeMs) / newAnswerCount
       );
@@ -446,6 +469,7 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Submit trivia answer error:", error);
+
     return res.status(500).json({
       message: "Server error while submitting trivia answer"
     });
@@ -515,6 +539,7 @@ export const nextTriviaQuestion = async (req: AuthRequest, res: Response) => {
     });
   } catch (error) {
     console.error("Next trivia question error:", error);
+
     return res.status(500).json({
       message: "Server error while moving to next question"
     });
@@ -546,6 +571,7 @@ export const getTriviaLeaderboard = async (
     });
   } catch (error) {
     console.error("Get trivia leaderboard error:", error);
+
     return res.status(500).json({
       message: "Server error while fetching trivia leaderboard"
     });
