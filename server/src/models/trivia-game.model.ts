@@ -37,6 +37,7 @@ export interface ITriviaPlayerScore {
 export interface ITriviaGame extends Document {
   tournament: Types.ObjectId;
   topic: string;
+  category: string;
   difficulty: TriviaDifficulty;
   questionCount: number;
   timePerQuestion: number;
@@ -62,6 +63,11 @@ const triviaGameSchema = new Schema<ITriviaGame>(
     topic: {
       type: String,
       required: true,
+      trim: true
+    },
+    category: {
+      type: String,
+      default: "General",
       trim: true
     },
     difficulty: {
@@ -194,6 +200,7 @@ const triviaGameSchema = new Schema<ITriviaGame>(
 triviaGameSchema.index({ tournament: 1 });
 triviaGameSchema.index({ status: 1 });
 triviaGameSchema.index({ topic: 1 });
+triviaGameSchema.index({ category: 1 });
 
 const TriviaGame = model<ITriviaGame>("TriviaGame", triviaGameSchema);
 
