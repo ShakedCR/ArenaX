@@ -80,6 +80,12 @@ export interface IGameEngine<TState extends BaseGameState, TMove> {
   getState(gameId: string): TState;
 
   /**
+   * Restores a previously persisted game state back into engine memory.
+   * Used for reconnection recovery after a server restart.
+   */
+  restoreGame(gameId: string, state: TState): void;
+
+  /**
    * Checks whether the game has ended
    */
   isGameOver(gameId: string): boolean;
@@ -88,4 +94,28 @@ export interface IGameEngine<TState extends BaseGameState, TMove> {
    * Returns the game result (null if still active)
    */
   getResult(gameId: string): GameResult | null;
+
+  /**
+   * Starts the next round (e.g. betting phase in Blackjack, new turn in Chess).
+   * Called by the socket layer between rounds.
+   */
+  startRound(gameId: string): TState;
+
+  /**
+   * Returns a ranked leaderboard for the game.
+   * Used by the tournament layer to determine stage advancement.
+   */
+  getLeaderboard(gameId: string): { playerId: string; tokens: number; rank: number }[];
+
+  /**
+   * Called when a player's turn timer expires.
+   * The engine should apply a sensible default action (e.g. stand, skip turn).
+   */
+  handleTimeout(gameId: string, playerId: string): TState;
+
+  /**
+   * Returns the list of legal moves for a player at the current game state.
+   * Used by the socket layer to populate the client UI.
+   */
+  getAvailableMoves(gameId: string, playerId: string): TMove[];
 }

@@ -8,8 +8,6 @@ const DARK3 = '#1C1C28'
 
 const gameIcons = {
   Blackjack: '♠',
-  Chess: '♟',
-  Checkers: '⬤'
 }
 
 const statusColors = {

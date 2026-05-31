@@ -1,62 +1,33 @@
 import { Box, Button, CircularProgress, Tab, Tabs, Typography } from '@mui/material'
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
+import useTournaments from '../../hooks/useTournaments'
+
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import FilterBar from '../../components/lobby/FilterBar'
 import TournamentRow from '../../components/lobby/TournamentRow'
 import CreateTournamentModal from '../../components/lobby/CreateTournamentModal'
-import { connectSocket } from '../../services/socket'
+import ActiveGameBanner from '../../components/layout/ActiveGameBanner'
 
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const BEBAS = "'Bebas Neue', sans-serif"
-
-const extractTournaments = (data) =>
-  Array.isArray(data?.tournaments) ? data.tournaments : []
+import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
 export default function Lobby() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
-  const [tournaments, setTournaments] = useState([])
-  const [myTournaments, setMyTournaments] = useState([])
-  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
-  const fetchTournaments = useCallback(async () => {
-    try {
-      const [allRes, myRes] = await Promise.all([
-        api.get('/tournaments'),
-        api.get('/tournaments/my')
-      ])
-      setTournaments(extractTournaments(allRes.data))
-      setMyTournaments(extractTournaments(myRes.data))
-    } catch (err) {
-      console.log(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { tournaments, myTournaments, loading, fetchTournaments } =
+    useTournaments({ includeMine: true })
 
-  useEffect(() => {
-    fetchTournaments()
-    refreshUser()
-  }, [fetchTournaments])
-
-  useEffect(() => {
-    const sock = connectSocket(localStorage.getItem('token'))
-
-    sock.on('tournament:created', () => fetchTournaments())
-    sock.on('tournament:opened', () => fetchTournaments())
-
-    return () => {
-      sock.off('tournament:created')
-      sock.off('tournament:opened')
-    }
-  }, [fetchTournaments])
+  const filteredTournaments = useMemo(() => {
+    const list = tab === 0 ? tournaments : myTournaments
+    return list.filter(t => filter === 'All' || t.gameTitle === filter)
+  }, [tab, filter, tournaments, myTournaments])
 
   const handleJoin = async (tournament) => {
     const userId = user?.id || user?._id
@@ -74,6 +45,7 @@ export default function Lobby() {
       navigate(`/tournament/${tournament._id}/waiting`)
     } catch (err) {
       console.log('Join failed:', err.response?.data)
+
       if (err.response?.data?.message === 'User already joined this tournament') {
         navigate(`/tournament/${tournament._id}/waiting`)
       }
@@ -84,6 +56,7 @@ export default function Lobby() {
     try {
       await api.patch(`/tournaments/${tournament._id}/open`)
       await fetchTournaments()
+      await refreshUser()
     } catch (err) {
       console.log('Open failed:', err)
     }
@@ -91,21 +64,19 @@ export default function Lobby() {
 
   const handleCreated = async () => {
     await fetchTournaments()
+    await refreshUser()
   }
-
-  const filtered = (tab === 0 ? tournaments : myTournaments).filter(t =>
-    filter === 'All' ? true : t.gameTitle === filter
-  )
 
   return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={user?.walletBalance || 0}
-        elo={user?.elo?.chess || 1200}
       />
 
       <Box sx={{ px: 6, py: 4 }}>
+        <ActiveGameBanner />
+
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
           <Box>
             <Typography sx={{ fontFamily: BEBAS, fontSize: 36, letterSpacing: 3 }}>
@@ -115,26 +86,33 @@ export default function Lobby() {
               Find and join competitive matches
             </Typography>
           </Box>
+
           <Button
             onClick={() => setModalOpen(true)}
             sx={{
-              bgcolor: GOLD, color: DARK, px: 3, py: 1.2,
-              fontWeight: 700, fontSize: 14,
+              bgcolor: GOLD,
+              color: DARK,
+              px: 3,
+              py: 1.2,
+              fontWeight: 700,
+              fontSize: 14,
               '&:hover': { bgcolor: '#E8C97A' }
-            }}>
+            }}
+          >
             + Create Tournament
           </Button>
         </Box>
 
         <Tabs
           value={tab}
-          onChange={(e, v) => setTab(v)}
+          onChange={(_, value) => setTab(value)}
           sx={{
             mb: 3,
             '& .MuiTab-root': { color: '#666', textTransform: 'none', fontSize: 14 },
             '& .Mui-selected': { color: GOLD },
             '& .MuiTabs-indicator': { bgcolor: GOLD }
-          }}>
+          }}
+        >
           <Tab label="Open Tournaments" />
           <Tab label="My Tournaments" />
         </Tabs>
@@ -145,17 +123,17 @@ export default function Lobby() {
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>
             <CircularProgress sx={{ color: GOLD }} />
           </Box>
-        ) : filtered.length === 0 ? (
+        ) : filteredTournaments.length === 0 ? (
           <Box sx={{ textAlign: 'center', mt: 8 }}>
             <Typography sx={{ color: '#666', fontSize: 14 }}>
               No tournaments found. Create one!
             </Typography>
           </Box>
         ) : (
-          filtered.map(t => (
+          filteredTournaments.map(tournament => (
             <TournamentRow
-              key={t._id}
-              tournament={t}
+              key={tournament._id}
+              tournament={tournament}
               onJoin={handleJoin}
               onOpen={handleOpen}
             />

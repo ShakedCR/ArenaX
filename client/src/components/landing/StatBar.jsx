@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material'
 const GOLD = '#C9A84C'
 
 const stats = [
-  { num: '3', label: 'GAMES', sub: 'Blackjack, Chess, Checkers' },
+  { num: '1', label: 'GAME', sub: 'Blackjack' },
   { num: '1K', label: 'TOKENS', sub: 'Starting balance' },
   { num: 'ELO', label: 'SYSTEM', sub: 'Competitive ranking' },
   { num: 'AI', label: 'INSIGHTS', sub: 'Post-game analysis' },
