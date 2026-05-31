@@ -3,33 +3,20 @@ POST http://localhost:3000/api/auth/register
 Content-Type: application/json
 
 {
-  "fullName": "Ofek1 Test1",
-  "username": "ofek11",
-  "email": "ofek11@test.com",
+  "fullName": "Ofek New",
+  "username": "ofek1001",
+  "email": "ofek1001@test.com",
   "password": "12345678"
 }
 
-###
-
-POST http://localhost:3000/api/auth/register
-Content-Type: application/json
-
-{
-  "fullName": "Mevo",
-  "username": "mevoest1",
-  "email": "mevo1b@test.com",
-  "password": "123456"
-}
-
-###
 
 ### Login
 POST http://localhost:3000/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "mevo1b@test.com",
-  "password": "123456"
+  "email": "ofek1001@test.com",
+  "password": "12345678"
 }
 
 ###
@@ -44,7 +31,7 @@ Content-Type: application/json
 
 ###
 @token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OWNiOWQ4OWNmMWQ3YTcwYjU0NmQ1YzMiLCJpYXQiOjE3NzQ5NTUwNTQsImV4cCI6MTc3NTU1OTg1NH0.iHZ_YTyJp44-oBITIaqvS5v-NifcgqU0iO3UWQHJFRE
-@tournamentId = 69cbf648c3613387dea5cefc
+@tournamentId = 6a171201db0e734f41bfdc60
 @matchId = 69cbaa52d8fdd4f285036b2f
 @winnerId = 69cba53d66c848a75a5ba46f
 
@@ -376,3 +363,99 @@ Authorization: Bearer {{token}}
 
 ### Get tournament by ID
 GET http://localhost:3000/api/tournaments/{{tournamentId}}
+
+@baseUrl = http://localhost:3000
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2YTE3MTAzNmRiMGU3MzRmNDFiZmRjNGQiLCJpYXQiOjE3Nzk4OTY4MDUsImV4cCI6MTc4MDUwMTYwNX0.Ddx_4cJ8gZZo63ZN7D-I_Hhsb1KrUPzB7PRxENiK-QU
+@triviaTournamentId = 6a17ffff17781f82e7f6f43d
+@triviaGameId = 6a17ffff17781f82e7f6f43d
+
+### Get topic suggestions
+GET {{baseUrl}}/api/trivia/topics/suggestions
+
+###
+
+### Create Trivia Tournament
+POST {{baseUrl}}/api/trivia/tournaments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Cyber Security Trivia",
+  "description": "AI generated cyber quiz",
+  "topic": "Cyber Security",
+  "difficulty": "medium",
+  "questionCount": 5,
+  "timePerQuestion": 20,
+  "maxParticipants": 10,
+  "entryFee": 0,
+  "isPrivate": false
+}
+
+###
+
+### Get Trivia Game By Tournament
+GET {{baseUrl}}/api/trivia/tournament/{{triviaTournamentId}}
+
+###
+
+### Start Trivia Game
+POST {{baseUrl}}/api/trivia/{{triviaGameId}}/start
+Authorization: Bearer {{token}}
+
+###
+
+### Submit Answer
+POST {{baseUrl}}/api/trivia/{{triviaGameId}}/answer
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "questionIndex": 0,
+  "selectedAnswerIndex": 0,
+  "responseTimeMs": 4500
+}
+
+###
+
+### Next Question
+POST {{baseUrl}}/api/trivia/{{triviaGameId}}/next-question
+Authorization: Bearer {{token}}
+
+###
+
+### Get Leaderboard
+GET {{baseUrl}}/api/trivia/{{triviaGameId}}/leaderboard
+
+### Create Trivia Tournament With AI
+POST http://localhost:3000/api/trivia/tournaments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "title": "Network Security Trivia",
+  "description": "AI generated quiz",
+  "topic": "Cyber Security",
+  "category": "Network Security",
+  "difficulty": "medium",
+  "questionCount": 5,
+  "timePerQuestion": 20,
+  "maxParticipants": 10,
+  "entryFee": 0,
+  "isPrivate": false
+}
+
+###
+POST http://localhost:3000/api/trivia/6a17fd80bdfb49456f5a070e/start
+Authorization: Bearer {{token}}
+
+### Open tournament first
+PATCH http://localhost:3000/api/tournaments/{{triviaTournamentId}}/open
+Authorization: Bearer {{token}}
+
+###
+
+### Join tournament
+POST http://localhost:3000/api/tournaments/{{triviaTournamentId}}/join
+Authorization: Bearer {{token}}
+###
+GET http://localhost:3000/api/trivia/tournament/{{triviaTournamentId}}

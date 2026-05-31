@@ -90,6 +90,7 @@ export class BlackjackEngine implements IGameEngine<BlackjackGameState, Blackjac
     if (!ps) throw new Error(`Player ${playerId} not found`);
     if (ps.hasBet) throw new Error("Already placed bet");
     if (ps.tokens <= 0) throw new Error("Player has no tokens left");
+    if (!bet || bet <= 0 || !isFinite(bet)) throw new Error("Invalid bet amount");
 
     const clampedBet =
       ps.tokens < MIN_BET
