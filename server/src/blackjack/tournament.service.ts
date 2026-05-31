@@ -77,6 +77,13 @@ export const handleTournamentStageEnd = async (
     .slice(0, spotsLeft);
 
   const advancingPlayerIds = [...clearlyAdvancing, ...selectedFromTie].map(e => e.playerId);
+
+  // Safety: if no one can advance (everyone at 0 tokens), end the tournament instead
+  if (advancingPlayerIds.length === 0) {
+    await endTournament(io, gameId, match, tournament, leaderboard, tournamentRoomId);
+    return false;
+  }
+
   const eliminatedPlayerIds = leaderboard
     .filter(e => !advancingPlayerIds.includes(e.playerId))
     .map(e => e.playerId);
