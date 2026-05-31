@@ -3,6 +3,7 @@ import http from "http";
 import jwt from "jsonwebtoken";
 import { setupBlackjackSocket } from "../blackjack/socket";
 import BlackjackGameStateModel from "../blackjack/game-state.model";
+import { setupTriviaSocket } from "./trivia.socket";
 
 const RECONNECT_TIMEOUT_MS = 60_000;
 
@@ -339,6 +340,7 @@ export function initSocketServer(httpServer: http.Server): Server {
   });
 
   setupBlackjackSocket(io);
+  setupTriviaSocket(io);
 
   return io;
 }
