@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
@@ -26,29 +26,29 @@ export default function WaitingRoom() {
 
   const userId = user?.id || user?._id
 
-  // Fetch tournament once for initial load
-  useEffect(() => {
-    const fetchTournament = async () => {
-      try {
-        const res = await api.get(`/tournaments/${id}`)
-        const t = res.data.tournament
-        setTournament(t)
+  const fetchTournament = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
+    try {
+      const res = await api.get(`/tournaments/${id}`)
+      const t = res.data.tournament
+      setTournament(t)
 
-        // If tournament already started → go to game
-        const gameId = t?.matchData?.currentGameId
-        if (t?.status === 'ongoing' && gameId) {
-          navigate(`/game/blackjack/${gameId}`)
-          return
-        }
-      } catch {
-        setError('Tournament not found')
-      } finally {
-        setLoading(false)
+      // If tournament already started → go to game
+      const gameId = t?.matchData?.currentGameId
+      if (t?.status === 'ongoing' && gameId) {
+        navigate(`/game/blackjack/${gameId}`)
       }
+    } catch {
+      setError('Tournament not found')
+    } finally {
+      if (showLoading) setLoading(false)
     }
-
-    fetchTournament()
   }, [id, navigate])
+
+  // Fetch tournament on mount
+  useEffect(() => {
+    fetchTournament()
+  }, [fetchTournament])
 
   // Real-time socket listeners
   useEffect(() => {
@@ -61,14 +61,9 @@ export default function WaitingRoom() {
 
     const handleParticipantAdded = (data) => {
       if (data.tournamentId !== id) return
-      setTournament(prev => {
-        if (!prev) return prev
-        const alreadyIn = prev.participants?.some(
-          p => (p._id || p.id) === data.participant._id
-        )
-        if (alreadyIn) return prev
-        return { ...prev, participants: [...(prev.participants || []), data.participant] }
-      })
+      // Re-fetch instead of patching state manually — avoids race condition where
+      // the event fires before the initial fetch completes (prev would be null).
+      fetchTournament(false)
     }
 
     const handleTournamentStarted = (data) => {
@@ -84,7 +79,7 @@ export default function WaitingRoom() {
       sock.off('tournament:participant-added', handleParticipantAdded)
       sock.off('blackjack:tournament-started', handleTournamentStarted)
     }
-  }, [id, userId, navigate])
+  }, [id, userId, navigate, fetchTournament])
 
   // ▶️ start tournament
   const handleStart = async () => {
