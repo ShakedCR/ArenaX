@@ -30,9 +30,11 @@ export const updateEloAfterGame = async (
     .select("_id elo")
     .lean() as { _id: any; elo?: { blackjack?: number } }[];
 
+  const userById = new Map(users.map(u => [u._id.toString(), u]));
+
   const inputs = leaderboard.map(entry => ({
     playerId: entry.playerId,
-    rating: users.find(u => u._id.toString() === entry.playerId)?.elo?.[game] ?? 1200,
+    rating: userById.get(entry.playerId)?.elo?.[game] ?? 1200,
     rank: entry.rank,
   }));
 
