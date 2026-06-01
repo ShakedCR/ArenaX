@@ -94,9 +94,17 @@ const getPersistedGameState = async (gameId: string): Promise<PersistedGameState
  */
 
 export function initSocketServer(httpServer: http.Server): Server {
+  const clientOrigins = [process.env.CLIENT_URL].filter(Boolean);
+
   _io = new Server(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:5173",
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        if (clientOrigins.includes(origin)) return callback(null, true);
+        // Allow any localhost/127.0.0.1 origin with any port to simplify local dev
+        if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return callback(null, true);
+        return callback(new Error('CORS origin denied'));
+      },
       credentials: true
     }
   });
@@ -308,7 +316,6 @@ export function initSocketServer(httpServer: http.Server): Server {
       if (!gameId) return;
 
       const room = gameRoomName(gameId);
-
       io.to(room).emit("player:disconnect", {
         gameId,
         userId,
