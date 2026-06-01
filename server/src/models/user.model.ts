@@ -1,6 +1,10 @@
-import { Schema, model, Document, Types } from "mongoose";
+import { Schema, model, Document } from "mongoose";
 
 export type UserRole = "player" | "admin" | "moderator";
+
+export interface IUserElo {
+  blackjack: number;
+}
 
 export interface IUser extends Document {
   fullName: string;
@@ -13,7 +17,8 @@ export interface IUser extends Document {
   walletBalance: number;
   isActive: boolean;
   games: string[];
-  groups: Types.ObjectId[];
+  lastDailyBonus?: Date;
+  elo: IUserElo;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,12 +73,13 @@ const userSchema = new Schema<IUser>(
       type: [String],
       default: []
     },
-    groups: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Group"
-      }
-    ]
+    lastDailyBonus: {
+      type: Date,
+      default: null
+    },
+    elo: {
+      blackjack: { type: Number, default: 1200, min: 100 },
+    }
   },
   {
     timestamps: true

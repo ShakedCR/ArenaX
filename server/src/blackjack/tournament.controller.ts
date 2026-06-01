@@ -1,32 +1,16 @@
 import { Response } from "express";
 import { Types } from "mongoose";
+import bcrypt from "bcrypt";
 import Tournament from "../models/tournament.model";
-import Match from "../models/match.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
-import { blackjackEngine } from "../games/blackjack.engine";
-import BlackjackGameStateModel from "../models/blackjack-game-state.model";
 import { getIO } from "../socket";
 import { TournamentService } from "../services/tournament.service";
 import { WalletService } from "../services/wallet.service";
 import { ApiResponseHandler } from "../utils/api-response";
-
-const generateInviteCode = (): string => {
-  const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const timePart = Date.now().toString(36).slice(-4).toUpperCase();
-  return `${randomPart}${timePart}`;
-};
-
-const generateUniqueInviteCode = async (): Promise<string> => {
-  let inviteCode: string;
-  let exists = true;
-  while (exists) {
-    inviteCode = generateInviteCode();
-    exists = !!(await Tournament.exists({ inviteCode }));
-  }
-  return inviteCode!;
-};
+import { getAdvancingCount } from "../utils/tournament.utils";
+import { createBlackjackGame, generateUniqueInviteCode } from "./game.service";
 
 const isTournamentCreator = (createdBy: Types.ObjectId | string, userId: string): boolean =>
   createdBy.toString() === userId;
@@ -42,55 +26,6 @@ const shuffleArray = <T>(arr: T[]): T[] => {
   return d;
 };
 
-// ── Tournament stage helper ───────────────────────────────────────────────────
-// Determines how many players advance to the next stage
-const getAdvancingCount = (playerCount: number): number => {
-  if (playerCount <= 3) return 0; // single stage — no advancement needed
-  if (playerCount <= 6) return Math.ceil(playerCount / 2);
-  return 4;
-};
-
-// Creates a single Blackjack game with all players at the table
-const createBlackjackGame = async (
-  tournamentId: Types.ObjectId,
-  playerIds: string[],
-  stage: number
-): Promise<{ matchId: string; gameId: string }> => {
-  const users = await User.find({ _id: { $in: playerIds } })
-    .select("_id username fullName").lean() as { _id: Types.ObjectId; username?: string; fullName?: string }[];
-
-  const players = playerIds.map(pid => {
-    const u = users.find(u => u._id.toString() === pid);
-    return { id: pid, name: u?.username || u?.fullName || pid };
-  });
-
-  // Create match document
-  const match = await Match.create({
-    tournament: tournamentId,
-    gameTitle: "Blackjack",
-    round: stage,
-    participants: playerIds.map(id => new Types.ObjectId(id)),
-    status: "live",
-    startedAt: new Date(),
-  });
-
-  const gameId = (match._id as Types.ObjectId).toString();
-
-  // Initialize engine
-  blackjackEngine.createGame(gameId, players);
-  const state = blackjackEngine.startBettingPhase(gameId);
-
-  await BlackjackGameStateModel.findOneAndUpdate(
-    { gameId },
-    { $set: { status: "active", stateSnapshot: state, leaderboard: blackjackEngine.getLeaderboard(gameId), lastAction: "betting" } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
-
-  await Match.findByIdAndUpdate(match._id, { "matchData.gameId": gameId });
-
-  return { matchId: gameId, gameId };
-};
-
 export const createTournament = async (req: AuthRequest, res: Response) => {
   try {
     const {
@@ -102,18 +37,19 @@ export const createTournament = async (req: AuthRequest, res: Response) => {
     if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
     if (!title || !gameTitle || !format || !maxParticipants || !startDate)
       return res.status(400).json({ message: "Missing required fields" });
-    if (isPrivate === true && (!privatePassword || String(privatePassword).trim() === ""))
-      return res.status(400).json({ message: "Private tournaments must include a privatePassword" });
+    if (isPrivate === true && (!privatePassword || String(privatePassword).trim().length < 4))
+      return res.status(400).json({ message: "Private tournaments must include a password (min 4 characters)" });
     if (gameTitle === "Blackjack" && (Number(maxParticipants) < 2 || Number(maxParticipants) > 6))
       return res.status(400).json({ message: "Blackjack tournaments support 2 to 6 players" });
 
+    const hashedPassword = isPrivate ? await bcrypt.hash(String(privatePassword), 10) : "";
     const inviteCode = await generateUniqueInviteCode();
     const tournament = await Tournament.create({
       title, description, inviteCode, gameTitle, gameMode, platform, format,
       entryFee: entryFee ?? 0, prizePool: prizePool ?? 0, maxParticipants,
-      startDate, endDate, settings, createdBy: req.userId, participants: [],
+      startDate, endDate, settings, createdBy: req.userId, participants: [new Types.ObjectId(req.userId)],
       status: "draft", isPrivate: isPrivate ?? false,
-      privatePassword: isPrivate ? String(privatePassword) : ""
+      privatePassword: hashedPassword
     });
 
     // Notify all lobby users about the new tournament
@@ -195,32 +131,42 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: "Tournament is not open for registration" });
 
     const userObjectId = new Types.ObjectId(req.userId);
-    const isAlreadyParticipant = tournament.participants.some(p => p.equals(userObjectId));
-    if (isAlreadyParticipant) return res.status(400).json({ message: "User already joined this tournament" });
-    if (tournament.participants.length >= tournament.maxParticipants)
-      return res.status(400).json({ message: "Tournament is full" });
 
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    if (tournament.entryFee > 0 && user.walletBalance < tournament.entryFee)
+      return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
+
+    // Atomically add participant — single DB operation prevents race-condition duplicates
+    const updateOps: Record<string, any> = { $push: { participants: userObjectId } };
+    if (tournament.entryFee > 0) updateOps.$inc = { prizePool: tournament.entryFee };
+
+    const joined = await Tournament.findOneAndUpdate(
+      {
+        _id: id,
+        status: "open",
+        participants: { $ne: userObjectId },
+        $expr: { $lt: [{ $size: "$participants" }, "$maxParticipants"] },
+      },
+      updateOps,
+      { new: true }
+    );
+
+    if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
+
     if (tournament.entryFee > 0) {
-      if (user.walletBalance < tournament.entryFee)
-        return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
-      user.walletBalance -= tournament.entryFee;
-      tournament.prizePool += tournament.entryFee;
-      await user.save();
+      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -tournament.entryFee } });
       await Transaction.create({
         user: user._id, tournament: tournament._id,
         amount: tournament.entryFee, type: "entry_fee", status: "completed",
         description: `Entry fee for tournament: ${tournament.title}`
       });
+      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
     }
 
-    tournament.participants.push(userObjectId);
-    await tournament.save();
-
-    // Notify all users in the waiting room about the new participant
-    getIO().to(`tournament:${id}`).emit("tournament:participant-added", {
+    getIO().emit("tournament:participant-added", {
       tournamentId: id,
       participant: {
         _id: (user._id as Types.ObjectId).toString(),
@@ -229,14 +175,7 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    // Notify the joining user of their updated wallet balance
-    if (tournament.entryFee > 0) {
-      getIO().to(`user:${req.userId}`).emit("wallet:updated", {
-        walletBalance: user.walletBalance,
-      });
-    }
-
-    return res.status(200).json({ message: "Joined tournament successfully", walletBalance: user.walletBalance, tournament });
+    return res.status(200).json({ message: "Joined tournament successfully", walletBalance: user.walletBalance, tournament: joined });
   } catch (error) {
     console.error("Join tournament error:", error);
     return res.status(500).json({ message: "Server error while joining tournament" });
@@ -263,10 +202,10 @@ export const updateTournament = async (req: AuthRequest, res: Response) => {
     });
 
     if (req.body.isPrivate === true) {
-      if (req.body.privatePassword !== undefined && String(req.body.privatePassword).trim() !== "") {
-        tournament.privatePassword = String(req.body.privatePassword);
+      if (req.body.privatePassword !== undefined && String(req.body.privatePassword).trim().length >= 4) {
+        tournament.privatePassword = await bcrypt.hash(String(req.body.privatePassword), 10);
       } else if (!tournament.privatePassword) {
-        return res.status(400).json({ message: "Private tournaments must include a privatePassword" });
+        return res.status(400).json({ message: "Private tournaments must include a password (min 4 characters)" });
       }
     }
     if (req.body.isPrivate === false) tournament.privatePassword = "";
@@ -366,13 +305,16 @@ export const startTournament = async (req: AuthRequest, res: Response) => {
         "matchData.advancingCount": getAdvancingCount(shuffledIds.length),
       });
 
-      // Notify all players
+      // Notify all players in the waiting room
       getIO().to(`tournament:${id}`).emit("blackjack:tournament-started", {
-          tournamentId: id,
-          gameId,
-          stage: 1,
-          playerCount: shuffledIds.length,
-        });
+        tournamentId: id,
+        gameId,
+        stage: 1,
+        playerCount: shuffledIds.length,
+      });
+
+      // Notify everyone (Lobby, TournamentsList) that this tournament is now ongoing
+      getIO().emit("tournament:status-changed", { tournamentId: id, status: "ongoing" });
 
       return res.json({ message: "Tournament started", gameId, stage: 1 });
     }
@@ -440,40 +382,52 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
       return res.status(400).json({ message: "Tournament is not open for registration" });
     }
 
-    // Only require password for non-creators or for creators joining open tournaments
-    if (tournament.isPrivate && !isCreator) {
-      if (!privatePassword || privatePassword !== tournament.privatePassword)
+    if (tournament.isPrivate) {
+      const passwordMatch = privatePassword && tournament.privatePassword
+        ? await bcrypt.compare(String(privatePassword), tournament.privatePassword)
+        : false;
+      if (!passwordMatch)
         return res.status(403).json({ message: "Invalid private tournament password" });
     }
 
     const userObjectId = new Types.ObjectId(req.userId);
-    const isAlreadyParticipant = tournament.participants.some(p => p.equals(userObjectId));
-    if (isAlreadyParticipant) return res.status(400).json({ message: "User already joined this tournament" });
-    if (tournament.participants.length >= tournament.maxParticipants)
-      return res.status(400).json({ message: "Tournament is full" });
+    const tournamentId = (tournament._id as Types.ObjectId).toString();
 
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
+    if (tournament.entryFee > 0 && user.walletBalance < tournament.entryFee)
+      return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
+
+    // Atomically add participant — single DB operation prevents race-condition duplicates
+    const updateOps: Record<string, any> = { $push: { participants: userObjectId } };
+    if (tournament.entryFee > 0) updateOps.$inc = { prizePool: tournament.entryFee };
+
+    const joined = await Tournament.findOneAndUpdate(
+      {
+        _id: tournament._id,
+        status: "open",
+        participants: { $ne: userObjectId },
+        $expr: { $lt: [{ $size: "$participants" }, "$maxParticipants"] },
+      },
+      updateOps,
+      { new: true }
+    );
+
+    if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
+
     if (tournament.entryFee > 0) {
-      if (user.walletBalance < tournament.entryFee)
-        return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
-      user.walletBalance -= tournament.entryFee;
-      tournament.prizePool += tournament.entryFee;
-      await user.save();
+      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -tournament.entryFee } });
       await Transaction.create({
         user: user._id, tournament: tournament._id,
         amount: tournament.entryFee, type: "entry_fee", status: "completed",
         description: `Entry fee for tournament: ${tournament.title}`
       });
+      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
     }
 
-    tournament.participants.push(userObjectId);
-    await tournament.save();
-
-    // Notify all users in the waiting room about the new participant
-    const tournamentId = (tournament._id as Types.ObjectId).toString();
-    getIO().to(`tournament:${tournamentId}`).emit("tournament:participant-added", {
+    getIO().emit("tournament:participant-added", {
       tournamentId,
       participant: {
         _id: (user._id as Types.ObjectId).toString(),
@@ -482,16 +436,9 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
       },
     });
 
-    // Notify the joining user of their updated wallet balance
-    if (tournament.entryFee > 0) {
-      getIO().to(`user:${req.userId}`).emit("wallet:updated", {
-        walletBalance: user.walletBalance,
-      });
-    }
-
     return res.status(200).json({
       message: "Joined tournament successfully via invite link",
-      walletBalance: user.walletBalance, tournament
+      walletBalance: user.walletBalance, tournament: joined
     });
   } catch (error) {
     console.error("Join tournament by invite code error:", error);
@@ -537,4 +484,5 @@ export const getQRCode = async (req: AuthRequest, res: Response) => {
     return res.status(statusCode).json(ApiResponseHandler.error(error.message));
   }
 };
+
 

@@ -1,0 +1,27 @@
+import { Router } from "express";
+import {
+  createTriviaTournament,
+  getTriviaGameByTournament,
+  getTriviaLeaderboard,
+  getTriviaTopicSuggestions,
+  nextTriviaQuestion,
+  startTriviaGame,
+  submitTriviaAnswer
+} from "../controllers/trivia.controller";
+import { authMiddleware } from "../middleware/auth.middleware";
+
+const router = Router();
+
+router.get("/topics/suggestions", getTriviaTopicSuggestions);
+
+router.post("/tournaments", authMiddleware, createTriviaTournament);
+
+router.get("/tournament/:tournamentId", getTriviaGameByTournament);
+
+router.post("/:triviaGameId/start", authMiddleware, startTriviaGame);
+router.post("/:triviaGameId/answer", authMiddleware, submitTriviaAnswer);
+router.post("/:triviaGameId/next-question", authMiddleware, nextTriviaQuestion);
+
+router.get("/:triviaGameId/leaderboard", getTriviaLeaderboard);
+
+export default router;

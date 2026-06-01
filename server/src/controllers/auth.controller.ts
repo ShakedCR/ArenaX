@@ -33,6 +33,7 @@ const buildSafeUser = (user: any) => {
     isActive: user.isActive,
     games: user.games,
     groups: user.groups,
+    elo: user.elo,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt
   };

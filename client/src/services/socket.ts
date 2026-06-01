@@ -1,6 +1,7 @@
 import { io, Socket } from "socket.io-client";
 
-const SERVER_URL = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
+const SERVER_URL =
+  (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
 
 type AckResponse = {
   ok: boolean;
@@ -10,12 +11,19 @@ type AckResponse = {
 type BlackjackAction = "hit" | "stand" | "double" | "split";
 
 let socket: Socket | null = null;
+let activeToken: string | null = null;
 
-/**
- * Initialize the Socket.io connection with the user's JWT token.
- * Call this once after the user logs in.
- */
 export function connectSocket(token: string): Socket {
+  if (socket && activeToken === token) {
+    return socket;
+  }
+
+  if (socket && activeToken !== token) {
+    socket.disconnect();
+    socket = null;
+  }
+
+  activeToken = token;
   const nextToken = token || localStorage.getItem('token') || undefined;
 
   if (socket) {
@@ -59,25 +67,17 @@ export function connectSocket(token: string): Socket {
   return socket;
 }
 
-/**
- * Returns the active socket instance, or null if it was not initialized.
- */
 export function getSocket(): Socket | null {
   return socket;
 }
 
-/**
- * Disconnect and clean up the socket.
- * Call this on logout.
- */
 export function disconnectSocket(): void {
   if (socket) {
     socket.disconnect();
     socket = null;
+    activeToken = null;
   }
 }
-
-// ── Room helpers ─────────────────────────────────────────────────────────────
 
 export function joinTournamentRoom(tournamentId: string): void {
   socket?.emit("join-tournament-room", tournamentId);
@@ -86,8 +86,6 @@ export function joinTournamentRoom(tournamentId: string): void {
 export function leaveTournamentRoom(tournamentId: string): void {
   socket?.emit("leave-tournament-room", tournamentId);
 }
-
-// ── Game helpers ──────────────────────────────────────────────────────────────
 
 export function joinGame(gameId: string): Promise<AckResponse> {
   return new Promise((resolve, reject) => {
@@ -125,8 +123,12 @@ export function sendBlackjackAction(
       return;
     }
 
-    socket.emit("blackjack:player-action", { gameId, action }, (res: AckResponse) => {
-      resolve(res);
-    });
+    socket.emit(
+      "blackjack:player-action",
+      { gameId, action },
+      (res: AckResponse) => {
+        resolve(res);
+      }
+    );
   });
 }

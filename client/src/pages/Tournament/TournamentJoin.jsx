@@ -14,8 +14,6 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const gameIcons = {
   Blackjack: '♠',
-  Chess: '♟',
-  Checkers: '⬤'
 }
 
 const isDev = import.meta.env.DEV
@@ -266,7 +264,6 @@ export default function TournamentJoin() {
       <AuthNavbar
         username={user?.username || 'Player'}
         tokens={user?.walletBalance || 0}
-        elo={user?.elo || 1200}
       />
 
       <Box sx={{ maxWidth: 500, mx: 'auto', py: 8, px: 4 }}>

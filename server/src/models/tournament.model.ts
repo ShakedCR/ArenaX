@@ -30,7 +30,6 @@ export interface ITournament extends Document {
   participants: Types.ObjectId[];
   participantCount: number;
   createdBy: Types.ObjectId;
-  group?: Types.ObjectId;
   startDate: Date;
   endDate?: Date;
   settings?: ITournamentSettings;
@@ -39,10 +38,14 @@ export interface ITournament extends Document {
     currentStage?: number;
     advancingCount?: number;
   };
-  qrUrl?: string;
-  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  qrUrl?: string;
+  deletedAt?: Date;
+  result?: {
+    winner?: Types.ObjectId | null;
+    isTie?: boolean;
+  };
 }
 
 const tournamentSchema = new Schema<ITournament>(
@@ -71,7 +74,6 @@ const tournamentSchema = new Schema<ITournament>(
     participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
     participantCount: { type: Number, default: 0, min: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    group: { type: Schema.Types.ObjectId, ref: "Group" },
     startDate: { type: Date, required: true },
     endDate: { type: Date },
     settings: {
@@ -86,6 +88,10 @@ const tournamentSchema = new Schema<ITournament>(
       currentGameId: { type: String, default: "" },
       currentStage: { type: Number, default: 1 },
       advancingCount: { type: Number, default: 0 }
+    },
+    result: {
+      winner: { type: Schema.Types.ObjectId, ref: "User", default: null },
+      isTie: { type: Boolean, default: false }
     },
     qrUrl: { type: String, default: "" },
     deletedAt: { type: Date, default: null }
