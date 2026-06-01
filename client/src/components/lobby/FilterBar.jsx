@@ -3,7 +3,7 @@ import { Box, Typography } from '@mui/material'
 const GOLD = '#C9A84C'
 const DARK3 = '#1C1C28'
 
-const filters = ['All', 'Blackjack']
+const filters = ['All', 'Blackjack', 'Chess', 'Checkers']
 
 export default function FilterBar({ active, onChange }) {
   return (

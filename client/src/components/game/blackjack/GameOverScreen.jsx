@@ -1,35 +1,7 @@
 import { Box, Typography, Button } from '@mui/material'
 import { GOLD, DARK, DARK2, BEBAS } from './constants'
 
-function EloBadge({ eloResult }) {
-  if (!eloResult) return null
-  const { oldRating, newRating, delta } = eloResult
-  const positive = delta >= 0
-  return (
-    <Box sx={{
-      display: 'flex', alignItems: 'center', gap: 2,
-      bgcolor: DARK2, border: `1px solid ${positive ? 'rgba(76,175,80,0.3)' : 'rgba(239,83,80,0.3)'}`,
-      borderRadius: 2, px: 3, py: 1.5,
-    }}>
-      <Box>
-        <Typography sx={{ color: '#555', fontSize: 11, fontFamily: BEBAS, letterSpacing: 2 }}>
-          BLACKJACK ELO
-        </Typography>
-        <Typography sx={{ color: '#ccc', fontSize: 18, fontFamily: BEBAS, letterSpacing: 1 }}>
-          {oldRating} → {newRating}
-        </Typography>
-      </Box>
-      <Typography sx={{
-        fontFamily: BEBAS, fontSize: 28, letterSpacing: 1,
-        color: positive ? '#4caf50' : '#ef5350',
-      }}>
-        {positive ? '+' : ''}{delta}
-      </Typography>
-    </Box>
-  )
-}
-
-export default function GameOverScreen({ finalLeaderboard, playerNames, currentUserId, eloResult, onBack }) {
+export default function GameOverScreen({ finalLeaderboard, playerNames, currentUserId, onBack }) {
   const myEntry  = finalLeaderboard?.find(e => (e.id || e.playerId) === currentUserId)
   const winner   = finalLeaderboard?.[0]
   const isWinner = winner && (winner.id || winner.playerId) === currentUserId
@@ -46,16 +18,13 @@ export default function GameOverScreen({ finalLeaderboard, playerNames, currentU
       <Typography sx={{ fontFamily: BEBAS, fontSize: 72, color: isWinner ? GOLD : '#fff', lineHeight: 1 }}>
         {isWinner ? 'VICTORY' : 'DEFEATED'}
       </Typography>
-
       {myEntry && (
         <Typography sx={{ color: GOLD, fontSize: 18 }}>
           Final tokens: ⬡ {myEntry.tokens}
         </Typography>
       )}
 
-      <EloBadge eloResult={eloResult} />
-
-      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 3, minWidth: 320, mt: 1 }}>
+      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 3, minWidth: 320, mt: 2 }}>
         <Typography sx={{ fontFamily: BEBAS, fontSize: 18, letterSpacing: 3, color: GOLD, mb: 2 }}>
           FINAL STANDINGS
         </Typography>
