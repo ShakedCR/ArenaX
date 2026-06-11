@@ -11,8 +11,9 @@ const DARK = '#0A0A0F'
 const BEBAS = "'Bebas Neue', sans-serif"
 
 const games = [
-  { icon: '♠', name: 'BLACKJACK', desc: 'Test your nerve. Beat the dealer. Outscore the table.', tag: '2-6 Players' },
-  { icon: '🧠', name: 'TRIVIA', desc: 'AI-powered questions. Prove your knowledge. Outsmart the competition.', tag: 'Coming Soon', comingSoon: true },
+  { icon: '♠', name: 'BLACKJACK', desc: 'Test your nerve. Beat the dealer. Outscore the table.', tag: '2-8 Players' },
+  { icon: '♟', name: 'CHESS', desc: 'Pure strategy. No luck. Outthink your opponent move by move.', tag: '1v1' },
+  { icon: '⬤', name: 'CHECKERS', desc: 'Fast-paced tactics. Jump, capture, and dominate the board.', tag: '1v1' },
 ]
 
 const steps = [
@@ -49,7 +50,7 @@ export default function LandingPage() {
         <Box sx={{ width: 60, height: 2, bgcolor: GOLD, mx: 'auto', mt: 4, mb: 4 }} />
 
         <Typography sx={{ color: '#888', fontSize: 15, mb: 6 }}>
-          Enter the arena. Compete in Blackjack tournaments for tokens, glory, and Elo supremacy. Trivia coming soon.
+          Enter the arena. Compete in Blackjack, Chess, and Checkers tournaments for tokens, glory, and Elo supremacy.
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 10 }}>
@@ -104,7 +105,7 @@ export default function LandingPage() {
           READY TO <span style={{ color: GOLD }}>COMPETE?</span>
         </Typography>
         <Typography sx={{ color: '#888', mt: 2, mb: 6, fontSize: 15 }}>
-          Join thousands of players. Prove your skill at the table.
+          Join thousands of players. Prove your skill across three games.
         </Typography>
         <Button onClick={() => navigate('/register')}
           sx={{ bgcolor: GOLD, color: DARK, px: 6, py: 1.5,

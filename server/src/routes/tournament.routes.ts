@@ -14,7 +14,7 @@ import {
   joinTournamentByInviteCode,
   regenerateTournamentInviteCode,
   getQRCode
-} from "../blackjack/tournament.controller";
+} from "../controllers/blackjack.tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
 const router = Router();
