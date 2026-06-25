@@ -61,6 +61,10 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
     })
   }
 
+  const handleFileChange = (file) => {
+    setForm(prev => ({ ...prev, document: file || null }))
+  }
+
   const handleTypeChange = (type) => {
     setForm(prev => ({
       ...prev,
@@ -117,17 +121,19 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
       let res
 
       if (isTrivia) {
-        res = await api.post('/trivia/tournaments', {
-          title: form.title.trim(),
-          category: form.category,
-          difficulty: form.difficulty,
-          questionCount: Number(form.questionCount),
-          timePerQuestion: Number(form.timePerQuestion),
-          entryFee: Number(form.entryFee),
-          maxParticipants: Number(form.maxParticipants),
-          isPrivate: form.type === 'private',
-          privatePassword: form.type === 'private' ? form.privatePassword : undefined,
-        })
+        const formData = new FormData()
+        formData.append('title', form.title.trim())
+        formData.append('category', form.category)
+        formData.append('difficulty', form.difficulty)
+        formData.append('questionCount', String(Number(form.questionCount)))
+        formData.append('timePerQuestion', String(Number(form.timePerQuestion)))
+        formData.append('entryFee', String(Number(form.entryFee)))
+        formData.append('maxParticipants', String(Number(form.maxParticipants)))
+        formData.append('isPrivate', String(form.type === 'private'))
+        if (form.type === 'private') formData.append('privatePassword', form.privatePassword)
+        if (form.document) formData.append('document', form.document)
+
+        res = await api.post('/trivia/tournaments', formData)
       } else {
         res = await api.post('/tournaments', {
           title: form.title.trim(),
@@ -218,6 +224,7 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
             maxAllowed={maxAllowed}
             onChange={handleChange}
             onTypeChange={handleTypeChange}
+            onFileChange={handleFileChange}
             onSubmit={handleSubmit}
           />
         )}

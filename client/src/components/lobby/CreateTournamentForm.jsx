@@ -41,6 +41,7 @@ export default function CreateTournamentForm({
   maxAllowed,
   onChange,
   onTypeChange,
+  onFileChange,
   onSubmit
 }) {
   return (
@@ -119,6 +120,50 @@ export default function CreateTournamentForm({
                 ))}
               </Box>
             </Box>
+          </Box>
+
+          {/* Document upload */}
+          <Box sx={{ mb: 2 }}>
+            <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+              Source Document <span style={{ color: '#555' }}>(optional · PDF or TXT · max 10MB)</span>
+            </Typography>
+            <Box
+              component="label"
+              htmlFor="trivia-doc-upload"
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 2,
+                p: 1.5, borderRadius: 1, cursor: 'pointer',
+                bgcolor: DARK3, border: `1px solid ${form.document ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.2)'}`,
+                '&:hover': { borderColor: GOLD },
+                transition: 'border-color 0.2s'
+              }}
+            >
+              <Box sx={{
+                px: 2, py: 0.8, borderRadius: 1, fontSize: 12, fontWeight: 600,
+                bgcolor: 'rgba(201,168,76,0.15)', color: GOLD, flexShrink: 0
+              }}>
+                Choose file
+              </Box>
+              <Typography sx={{ fontSize: 13, color: form.document ? GOLD : '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {form.document ? form.document.name : 'No file selected'}
+              </Typography>
+              {form.document && (
+                <Box
+                  component="span"
+                  onClick={(e) => { e.preventDefault(); onFileChange(null) }}
+                  sx={{ ml: 'auto', color: '#555', fontSize: 18, lineHeight: 1, flexShrink: 0, '&:hover': { color: '#E84040' }, cursor: 'pointer' }}
+                >
+                  ✕
+                </Box>
+              )}
+            </Box>
+            <input
+              id="trivia-doc-upload"
+              type="file"
+              accept=".pdf,.txt"
+              style={{ display: 'none' }}
+              onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+            />
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
