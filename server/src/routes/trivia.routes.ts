@@ -10,12 +10,13 @@ import {
   submitTriviaAnswer
 } from "../controllers/trivia.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
+import { uploadDocument } from "../middleware/upload.middleware";
 
 const router = Router();
 
 router.get("/topics/suggestions", getTriviaTopicSuggestions);
 
-router.post("/tournaments", authMiddleware, createTriviaTournament);
+router.post("/tournaments", authMiddleware, uploadDocument, createTriviaTournament);
 
 router.get("/tournament/:tournamentId", getTriviaGameByTournament);
 router.get("/tournament/:tournamentId/standings", getTriviaStandings);

@@ -85,12 +85,17 @@ const cosineSimilarity = (a: number[], b: number[]): number => {
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-export const processDocument = async (
+export type PreparedChunk = { text: string; embedding: number[] };
+
+/**
+ * Phase 1 — extract text, chunk, embed (all in-memory, no DB).
+ * Call this BEFORE creating the tournament so we can use the context
+ * for question generation without needing a tournamentId yet.
+ */
+export const prepareDocumentChunks = async (
   buffer: Buffer,
-  mimetype: string,
-  filename: string,
-  tournamentId: string
-): Promise<number> => {
+  mimetype: string
+): Promise<PreparedChunk[]> => {
   const text = await extractText(buffer, mimetype);
   const chunks = chunkText(text);
 
@@ -98,23 +103,60 @@ export const processDocument = async (
     throw new Error("Document appears to be empty or unreadable");
   }
 
-  // Delete any existing chunks for this tournament (re-upload scenario)
+  return Promise.all(
+    chunks.map(async (text) => ({
+      text,
+      embedding: await getEmbedding(text),
+    }))
+  );
+};
+
+/**
+ * Phase 2 — save prepared chunks to DB once we have a tournamentId.
+ */
+export const saveDocumentChunks = async (
+  preparedChunks: PreparedChunk[],
+  filename: string,
+  tournamentId: string
+): Promise<void> => {
   await DocumentChunk.deleteMany({ tournament: tournamentId });
 
-  const docs = await Promise.all(
-    chunks.map(async (chunkText, index) => ({
+  await DocumentChunk.insertMany(
+    preparedChunks.map((chunk, index) => ({
       tournament: tournamentId,
-      text: chunkText,
-      embedding: await getEmbedding(chunkText),
+      text: chunk.text,
+      embedding: chunk.embedding,
       source: filename,
       chunkIndex: index,
     }))
   );
-
-  await DocumentChunk.insertMany(docs);
-  return chunks.length;
 };
 
+/**
+ * In-memory similarity search — used right after prepareDocumentChunks
+ * when we already have the chunks in memory.
+ */
+export const getContextFromChunks = async (
+  query: string,
+  preparedChunks: PreparedChunk[],
+  topN: number = TOP_N_CHUNKS
+): Promise<string[]> => {
+  const queryEmbedding = await getEmbedding(query);
+
+  return preparedChunks
+    .map(chunk => ({
+      text: chunk.text,
+      score: cosineSimilarity(queryEmbedding, chunk.embedding),
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN)
+    .map(c => c.text);
+};
+
+/**
+ * DB-based similarity search — used when chunks are already saved
+ * (e.g. for future retrieval after creation).
+ */
 export const findRelevantChunks = async (
   query: string,
   tournamentId: string,
@@ -128,12 +170,11 @@ export const findRelevantChunks = async (
 
   const queryEmbedding = await getEmbedding(query);
 
-  const scored = chunks.map(chunk => ({
-    text: chunk.text,
-    score: cosineSimilarity(queryEmbedding, chunk.embedding),
-  }));
-
-  return scored
+  return chunks
+    .map(chunk => ({
+      text: chunk.text,
+      score: cosineSimilarity(queryEmbedding, chunk.embedding),
+    }))
     .sort((a, b) => b.score - a.score)
     .slice(0, topN)
     .map(c => c.text);
