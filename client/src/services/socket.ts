@@ -24,9 +24,28 @@ export function connectSocket(token: string): Socket {
   }
 
   activeToken = token;
+  const nextToken = token || localStorage.getItem('token') || undefined;
+
+  if (socket) {
+    const currentToken = (socket.auth as { token?: string } | undefined)?.token;
+
+    if (nextToken && currentToken !== nextToken) {
+      socket.auth = { token: nextToken };
+      if (!socket.connected) {
+        socket.connect();
+      } else {
+        socket.disconnect();
+        socket.connect();
+      }
+    } else if (!socket.connected) {
+      socket.connect();
+    }
+
+    return socket;
+  }
 
   socket = io(SERVER_URL, {
-    auth: { token },
+    auth: nextToken ? { token: nextToken } : {},
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 5,

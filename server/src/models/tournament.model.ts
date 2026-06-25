@@ -28,6 +28,7 @@ export interface ITournament extends Document {
   prizePool: number;
   maxParticipants: number;
   participants: Types.ObjectId[];
+  participantCount: number;
   createdBy: Types.ObjectId;
   startDate: Date;
   endDate?: Date;
@@ -37,12 +38,14 @@ export interface ITournament extends Document {
     currentStage?: number;
     advancingCount?: number;
   };
+  createdAt: Date;
+  updatedAt: Date;
+  qrUrl?: string;
+  deletedAt?: Date;
   result?: {
     winner?: Types.ObjectId | null;
     isTie?: boolean;
   };
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const tournamentSchema = new Schema<ITournament>(
@@ -69,6 +72,7 @@ const tournamentSchema = new Schema<ITournament>(
     prizePool: { type: Number, default: 0, min: 0 },
     maxParticipants: { type: Number, required: true, min: 2 },
     participants: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    participantCount: { type: Number, default: 0, min: 0 },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
     startDate: { type: Date, required: true },
     endDate: { type: Date },
@@ -88,15 +92,20 @@ const tournamentSchema = new Schema<ITournament>(
     result: {
       winner: { type: Schema.Types.ObjectId, ref: "User", default: null },
       isTie: { type: Boolean, default: false }
-    }
+    },
+    qrUrl: { type: String, default: "" },
+    deletedAt: { type: Date, default: null }
   },
   { timestamps: true }
 );
 
-tournamentSchema.index({ gameTitle: 1, status: 1 });
+// Optimized indexes for common queries
+tournamentSchema.index({ status: 1, createdAt: -1 });
 tournamentSchema.index({ createdBy: 1 });
 tournamentSchema.index({ inviteCode: 1 }, { unique: true });
 tournamentSchema.index({ isPrivate: 1 });
+tournamentSchema.index({ gameTitle: 1, status: 1 });
+tournamentSchema.index({ deletedAt: 1 });
 
 const Tournament = model<ITournament>("Tournament", tournamentSchema);
 export default Tournament;

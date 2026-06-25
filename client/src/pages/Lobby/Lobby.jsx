@@ -14,6 +14,16 @@ import ActiveGameBanner from '../../components/layout/ActiveGameBanner'
 
 import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
+const normalizeId = (value) => {
+  if (!value) return null
+  if (typeof value === 'string') return value
+  if (typeof value === 'object') {
+    if (typeof value._id === 'string') return value._id
+    if (typeof value.id === 'string') return value.id
+  }
+  return null
+}
+
 export default function Lobby() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
@@ -30,13 +40,33 @@ export default function Lobby() {
   }, [tab, filter, tournaments, myTournaments])
 
   const handleJoin = async (tournament) => {
-    const userId = user?.id || user?._id
+    const userId = normalizeId(user?.id || user?._id)
+    const creatorId = normalizeId(tournament?.createdBy)
+    const isCreator = Boolean(userId && creatorId && userId === creatorId)
     const alreadyJoined = tournament.participants?.some(
-      p => p?._id === userId || p === userId
+      p => normalizeId(p?._id || p) === userId
     )
 
     if (alreadyJoined) {
       navigate(`/tournament/${tournament._id}/waiting`)
+      return
+    }
+
+    if (tournament.isPrivate) {
+      if (isCreator) {
+        try {
+          await api.post(`/tournaments/invite/${tournament.inviteCode}/join`)
+          navigate(`/tournament/${tournament._id}/waiting`)
+        } catch (err) {
+          console.log('Join failed:', err.response?.data)
+          if (err.response?.data?.message === 'User already joined this tournament') {
+            navigate(`/tournament/${tournament._id}/waiting`)
+          }
+        }
+        return
+      }
+
+      navigate(`/tournaments/join/${tournament.inviteCode}`)
       return
     }
 

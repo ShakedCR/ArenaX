@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
-import { connectSocket } from '../../services/socket'
+import { connectSocket, joinTournamentRoom, leaveTournamentRoom } from '../../services/socket'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -77,20 +77,9 @@ export default function WaitingRoom() {
       fetchTournament(false)
     }
 
-    const handleTournamentStarted = (data) => {
-      navigate(`/game/blackjack/${data.gameId}`)
-    }
-
-    sock.on('tournament:participant-added', handleParticipantAdded)
-    sock.on('blackjack:tournament-started', handleTournamentStarted)
-
-    return () => {
-      sock.emit('leave-tournament-room', id)
-      sock.off('connect', joinRoom)
-      sock.off('tournament:participant-added', handleParticipantAdded)
-      sock.off('blackjack:tournament-started', handleTournamentStarted)
-    }
-  }, [id, userId, navigate, fetchTournament])
+  sock.on('blackjack:tournament-started', (data) => {
+    navigate(`/game/blackjack/${data.gameId}`)
+  })
 
   // ── Trivia socket: join trivia room + listen for first question ─────────────
   useEffect(() => {
@@ -133,7 +122,15 @@ export default function WaitingRoom() {
       setError(err?.response?.data?.message || 'Failed to start tournament')
       setStarting(false)
     }
+
+    setError('Tournament started but no game was returned')
+    setStarting(false)
+  } catch (err) {
+    console.log('Failed to start tournament:', err?.response?.data || err)
+    setError(err?.response?.data?.message || 'Failed to start tournament')
+    setStarting(false)
   }
+}
 
   const handleTriviaStart = () => {
     if (!triviaGame?._id) return
@@ -182,8 +179,8 @@ export default function WaitingRoom() {
           <Typography sx={{ fontSize: 40, mb: 1 }}>
             {gameIcons[tournament?.gameTitle] || '🎮'}
           </Typography>
-          <Typography sx={{ fontFamily: BEBAS, fontSize: 40, letterSpacing: 3, mb: 1 }}>
-            {tournament?.title}
+          <Typography sx={{ color: GOLD, fontSize: 14 }}>
+            {tournament?.participants?.length || 0} / {tournament?.maxParticipants}
           </Typography>
           <Typography sx={{ color: '#666', fontSize: 14 }}>
             {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee}
@@ -235,9 +232,9 @@ export default function WaitingRoom() {
           )}
         </Box>
 
-        {error && (
-          <Typography sx={{ color: 'red', fontSize: 13, textAlign: 'center', mb: 2 }}>
-            {error}
+        {tournament?.participants?.length === 0 ? (
+          <Typography sx={{ color: '#666', fontSize: 13, textAlign: 'center', py: 2 }}>
+            No players yet
           </Typography>
         )}
 
@@ -253,18 +250,60 @@ export default function WaitingRoom() {
             {starting ? 'Starting...' : canStart ? 'Start Tournament' : waitingLabel}
           </Button>
         ) : (
-          <Box sx={{ textAlign: 'center', py: 3, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 2 }}>
-            <Typography sx={{ color: '#666', fontSize: 14 }}>
-              Waiting for the host to start the tournament...
-            </Typography>
-          </Box>
+          tournament?.participants?.map((p, i) => (
+            <Box key={i} sx={{
+              display: 'flex', alignItems: 'center', gap: 2,
+              py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)'
+            }}>
+              <Box sx={{
+                width: 32, height: 32, borderRadius: '50%',
+                bgcolor: 'rgba(201,168,76,0.1)',
+                border: '1px solid rgba(201,168,76,0.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 13, color: GOLD
+              }}>
+                {i + 1}
+              </Box>
+              <Typography sx={{ fontSize: 14 }}>
+                {p.username || p.fullName || 'Player'}
+              </Typography>
+              {(p.id === userId || p._id === userId) && (
+                <Typography sx={{ color: GOLD, fontSize: 11, ml: 'auto' }}>You</Typography>
+              )}
+            </Box>
+          ))
         )}
-
-        <Button fullWidth onClick={() => navigate('/lobby')}
-          sx={{ mt: 2, color: '#666', fontSize: 13, '&:hover': { color: 'white' } }}>
-          ← Back to Lobby
-        </Button>
       </Box>
+
+      {error && (
+        <Typography sx={{ color: 'red', fontSize: 13, textAlign: 'center', mb: 2 }}>
+          {error}
+        </Typography>
+      )}
+
+      {isCreator ? (
+        <Button fullWidth onClick={handleStart} disabled={!canStart || starting}
+          sx={{
+            bgcolor: canStart ? GOLD : '#3a3a3a',
+            color: canStart ? DARK : '#666',
+            py: 1.5, fontWeight: 700, fontSize: 15,
+            '&:hover': { bgcolor: canStart ? '#E8C97A' : '#3a3a3a' },
+            '&.Mui-disabled': { bgcolor: '#3a3a3a', color: '#666' }
+          }}>
+          {starting ? 'Starting...' : canStart ? 'Start Tournament' : `Waiting for players (${tournament?.participants?.length || 0}/2 minimum)`}
+        </Button>
+      ) : (
+        <Box sx={{ textAlign: 'center', py: 3, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 2 }}>
+          <Typography sx={{ color: '#666', fontSize: 14 }}>
+            Waiting for the host to start the tournament...
+          </Typography>
+        </Box>
+      )}
+
+      <Button fullWidth onClick={() => navigate('/lobby')}
+        sx={{ mt: 2, color: '#666', fontSize: 13, '&:hover': { color: 'white' } }}>
+        ← Back to Lobby
+      </Button>
     </Box>
   )
 }

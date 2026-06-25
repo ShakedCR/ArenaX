@@ -15,12 +15,23 @@ import walletRoutes from "./routes/wallet.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import aiRoutes from "./routes/ai.routes";
 import triviaRoutes from "./routes/trivia.routes";
+import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
 const app = express();
 
+const clientOrigins = [process.env.CLIENT_URL].filter(Boolean);
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // allow non-browser tools (no origin)
+      if (!origin) return callback(null, true);
+      // allow exact configured origins
+      if (clientOrigins.includes(origin)) return callback(null, true);
+      // Allow any localhost/127.0.0.1 origin with any port to simplify local dev
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return callback(null, true);
+      return callback(new Error('CORS origin denied'));
+    },
     credentials: true
   })
 );
@@ -44,6 +55,8 @@ app.get("/", (_req: Request, res: Response) => {
 });
 
 app.use("/health", healthRoutes);
+
+// API v1 routes
 app.use("/api/auth", authRoutes);
 app.use("/api/tournaments", tournamentRoutes);
 app.use("/api/matches", matchRoutes);
@@ -54,5 +67,11 @@ app.use("/api/transactions", transactionRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/trivia", triviaRoutes);
 
+
+// 404 handler
+app.use("*", notFoundHandler);
+
+// Error handler (must be last)
+app.use(errorHandler);
 
 export default app;
