@@ -46,6 +46,10 @@ ${context.join("\n\n---\n\n")}
 Important: questions must be directly answerable from the content above.`
     : "";
 
+  const languageInstruction = context && context.length > 0
+    ? "Important: Generate ALL questions, answers, and explanations in the same language as the document content above."
+    : "";
+
   return `
 You are generating trivia questions for a competitive multiplayer quiz game.
 
@@ -55,6 +59,7 @@ Topic: ${topic}
 Category: ${category || "General"}
 Difficulty: ${difficulty}
 ${contextSection}
+${languageInstruction}
 
 Return JSON only.
 Do not include markdown.
