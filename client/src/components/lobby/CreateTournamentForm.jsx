@@ -283,7 +283,11 @@ export default function CreateTournamentForm({
         }}
       >
         {loading
-          ? isTrivia ? 'Generating questions with AI...' : 'Creating...'
+          ? isTrivia
+            ? form.document
+              ? 'Processing document & generating questions...'
+              : 'Generating questions with AI...'
+            : 'Creating...'
           : 'Create Tournament'}
       </Button>
     </>

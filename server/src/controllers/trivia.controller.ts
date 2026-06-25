@@ -228,6 +228,7 @@ export const createTriviaTournament = async (
       timePerQuestion: safeTimePerQuestion,
       status: "waiting",
       currentQuestionIndex: -1,
+      hasDocument: !!uploadedFile,
       questions,
       answers: [],
       leaderboard: []

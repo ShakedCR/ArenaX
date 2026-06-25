@@ -46,6 +46,7 @@ export interface ITriviaGame extends Document {
   questions: ITriviaQuestion[];
   answers: ITriviaAnswer[];
   leaderboard: ITriviaPlayerScore[];
+  hasDocument: boolean;
   startedAt?: Date;
   questionStartedAt?: Date;
   completedAt?: Date;
@@ -186,6 +187,10 @@ const triviaGameSchema = new Schema<ITriviaGame>(
         }
       }
     ],
+    hasDocument: {
+      type: Boolean,
+      default: false,
+    },
     startedAt: {
       type: Date
     },
