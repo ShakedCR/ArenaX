@@ -48,7 +48,7 @@ export default function useTournaments({ includeMine = false } = {}) {
         setTournaments(extractTournaments(res.data))
       }
     } catch (err) {
-      console.log(err)
+      console.error('[useTournaments] fetch error:', err)
     } finally {
       setLoading(false)
     }

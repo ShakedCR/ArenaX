@@ -7,6 +7,7 @@ import {
   endCurrentTriviaQuestion,
   startTriviaQuestionTimer
 } from "../services/trivia-timer.service";
+import { calculateTriviaScore } from "../utils/trivia.utils";
 
 type SafeAck = (payload: {
   ok: boolean;
@@ -37,43 +38,6 @@ const triviaRoomName = (triviaGameId: string): string =>
   `trivia:${triviaGameId}`;
 
 const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
-
-const buildRankedLeaderboard = (leaderboard: any[]) => {
-  const sorted = [...leaderboard].sort((a, b) => {
-    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    if (b.correctAnswers !== a.correctAnswers) {
-      return b.correctAnswers - a.correctAnswers;
-    }
-
-    return a.averageResponseTimeMs - b.averageResponseTimeMs;
-  });
-
-  return sorted.map((item, index) => ({
-    rank: index + 1,
-    ...(item.toObject?.() ?? item)
-  }));
-};
-
-const calculateScore = (
-  isCorrect: boolean,
-  responseTimeMs: number,
-  timePerQuestion: number
-): number => {
-  if (!isCorrect) return 0;
-
-  const maxTimeMs = timePerQuestion * 1000;
-  const safeResponseTime = Math.min(Math.max(responseTimeMs, 0), maxTimeMs);
-
-  const remainingRatio = Math.max(
-    0,
-    (maxTimeMs - safeResponseTime) / maxTimeMs
-  );
-
-  const baseScore = 500;
-  const speedBonus = Math.round(500 * remainingRatio);
-
-  return baseScore + speedBonus;
-};
 
 export const setupTriviaSocket = (io: Server): void => {
   io.on("connection", (socket: Socket) => {
@@ -124,6 +88,25 @@ export const setupTriviaSocket = (io: Server): void => {
           userId,
           at: new Date().toISOString()
         });
+
+        // If the game is already running, restore the current question for this socket
+        if (triviaGame.status === "in_progress" && triviaGame.currentQuestionIndex >= 0) {
+          const currentQuestion = triviaGame.questions[triviaGame.currentQuestionIndex];
+
+          if (currentQuestion && triviaGame.questionStartedAt) {
+            socket.emit("trivia:question-started", {
+              triviaGameId,
+              currentQuestionIndex: triviaGame.currentQuestionIndex,
+              timePerQuestion: triviaGame.timePerQuestion,
+              question: {
+                questionIndex: triviaGame.currentQuestionIndex,
+                question: currentQuestion.question,
+                answers: currentQuestion.answers,
+              },
+              serverStartedAt: triviaGame.questionStartedAt.toISOString(),
+            });
+          }
+        }
 
         ack?.({
           ok: true,
@@ -196,6 +179,8 @@ export const setupTriviaSocket = (io: Server): void => {
         await triviaGame.save();
         await tournament.save();
 
+        io.emit("tournament:status-changed", { tournamentId: tournament._id.toString(), status: "ongoing" });
+
         await startTriviaQuestionTimer(io, triviaGameId);
 
         ack?.({ ok: true });
@@ -209,101 +194,38 @@ export const setupTriviaSocket = (io: Server): void => {
       "trivia:submit-answer",
       async (payload: TriviaSubmitAnswerPayload, ack?: SafeAck) => {
         try {
-          const {
-            triviaGameId,
-            questionIndex,
-            selectedAnswerIndex,
-            responseTimeMs
-          } = payload;
+          const { triviaGameId, questionIndex, selectedAnswerIndex, responseTimeMs } = payload;
 
           if (!triviaGameId || !isValidObjectId(triviaGameId)) {
             ack?.({ ok: false, message: "Valid triviaGameId is required" });
             return;
           }
+          if (selectedAnswerIndex === undefined || selectedAnswerIndex < 0 || selectedAnswerIndex > 3) {
+            ack?.({ ok: false, message: "selectedAnswerIndex must be between 0 and 3" });
+            return;
+          }
 
+          // Read game once for validation + score calculation
           const triviaGame = await TriviaGame.findById(triviaGameId);
-
-          if (!triviaGame) {
-            ack?.({ ok: false, message: "Trivia game not found" });
-            return;
-          }
-
-          if (triviaGame.status !== "in_progress") {
-            ack?.({ ok: false, message: "Trivia game is not in progress" });
-            return;
-          }
+          if (!triviaGame) { ack?.({ ok: false, message: "Trivia game not found" }); return; }
+          if (triviaGame.status !== "in_progress") { ack?.({ ok: false, message: "Trivia game is not in progress" }); return; }
+          if (questionIndex !== triviaGame.currentQuestionIndex) { ack?.({ ok: false, message: "Invalid question index" }); return; }
 
           const tournament = await Tournament.findById(triviaGame.tournament);
-
-          if (!tournament) {
-            ack?.({ ok: false, message: "Tournament not found" });
-            return;
-          }
+          if (!tournament) { ack?.({ ok: false, message: "Tournament not found" }); return; }
 
           const userObjectId = new Types.ObjectId(userId);
-
-          const isParticipant = tournament.participants.some((participantId) =>
-            participantId.equals(userObjectId)
-          );
-
-          if (!isParticipant) {
-            ack?.({
-              ok: false,
-              message: "Only tournament participants can answer"
-            });
-            return;
-          }
-
-          if (questionIndex !== triviaGame.currentQuestionIndex) {
-            ack?.({ ok: false, message: "Invalid question index" });
-            return;
-          }
-
-          const alreadyAnswered = triviaGame.answers.some(
-            (answer) =>
-              answer.user.toString() === userId &&
-              answer.questionIndex === questionIndex
-          );
-
-          if (alreadyAnswered) {
-            ack?.({ ok: false, message: "User already answered this question" });
-            return;
-          }
+          const isParticipant = tournament.participants.some((p) => p.equals(userObjectId));
+          if (!isParticipant) { ack?.({ ok: false, message: "Only tournament participants can answer" }); return; }
 
           const currentQuestion = triviaGame.questions[questionIndex];
+          if (!currentQuestion) { ack?.({ ok: false, message: "Question not found" }); return; }
 
-          if (!currentQuestion) {
-            ack?.({ ok: false, message: "Question not found" });
-            return;
-          }
+          const safeResponseTimeMs = Math.min(Math.max(Number(responseTimeMs) || 0, 0), triviaGame.timePerQuestion * 1000);
+          const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswerIndex;
+          const scoreEarned = calculateTriviaScore(isCorrect, safeResponseTimeMs, triviaGame.timePerQuestion);
 
-          if (
-            selectedAnswerIndex === undefined ||
-            selectedAnswerIndex < 0 ||
-            selectedAnswerIndex > 3
-          ) {
-            ack?.({
-              ok: false,
-              message: "selectedAnswerIndex must be between 0 and 3"
-            });
-            return;
-          }
-
-          const safeResponseTimeMs = Math.min(
-            Math.max(Number(responseTimeMs) || 0, 0),
-            triviaGame.timePerQuestion * 1000
-          );
-
-          const isCorrect =
-            selectedAnswerIndex === currentQuestion.correctAnswerIndex;
-
-          const scoreEarned = calculateScore(
-            isCorrect,
-            safeResponseTimeMs,
-            triviaGame.timePerQuestion
-          );
-
-          triviaGame.answers.push({
+          const answerDoc = {
             user: userObjectId,
             questionIndex,
             selectedAnswerIndex,
@@ -311,46 +233,54 @@ export const setupTriviaSocket = (io: Server): void => {
             responseTimeMs: safeResponseTimeMs,
             scoreEarned,
             answeredAt: new Date()
-          });
+          };
 
-          const existingScore = triviaGame.leaderboard.find((score) =>
-            score.user.equals(userObjectId)
+          // Atomic push — the filter rejects if user already answered this question
+          const pushResult = await TriviaGame.updateOne(
+            {
+              _id: triviaGameId,
+              status: "in_progress",
+              currentQuestionIndex: questionIndex,
+              "answers": {
+                $not: { $elemMatch: { user: userObjectId, questionIndex } }
+              }
+            },
+            { $push: { answers: answerDoc } }
           );
 
-          if (existingScore) {
-            const previousAnswers =
-              existingScore.correctAnswers + existingScore.wrongAnswers;
-
-            const previousTotalResponseTime =
-              existingScore.averageResponseTimeMs * previousAnswers;
-
-            existingScore.totalScore += scoreEarned;
-
-            if (isCorrect) {
-              existingScore.correctAnswers += 1;
-            } else {
-              existingScore.wrongAnswers += 1;
-            }
-
-            const newAnswerCount =
-              existingScore.correctAnswers + existingScore.wrongAnswers;
-
-            existingScore.averageResponseTimeMs = Math.round(
-              (previousTotalResponseTime + safeResponseTimeMs) / newAnswerCount
-            );
-          } else {
-            triviaGame.leaderboard.push({
-              user: userObjectId,
-              totalScore: scoreEarned,
-              correctAnswers: isCorrect ? 1 : 0,
-              wrongAnswers: isCorrect ? 0 : 1,
-              averageResponseTimeMs: safeResponseTimeMs
-            });
+          if (pushResult.modifiedCount === 0) {
+            ack?.({ ok: false, message: "User already answered this question" });
+            return;
           }
 
-          await triviaGame.save();
+          // Atomic leaderboard update — try existing entry first, then push new
+          const leaderboardUpdated = await TriviaGame.updateOne(
+            { _id: triviaGameId, "leaderboard.user": userObjectId },
+            {
+              $inc: {
+                "leaderboard.$.totalScore": scoreEarned,
+                "leaderboard.$.correctAnswers": isCorrect ? 1 : 0,
+                "leaderboard.$.wrongAnswers": isCorrect ? 0 : 1
+              }
+            }
+          );
 
-          const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+          if (leaderboardUpdated.modifiedCount === 0) {
+            await TriviaGame.updateOne(
+              { _id: triviaGameId, "leaderboard.user": { $ne: userObjectId } },
+              {
+                $push: {
+                  leaderboard: {
+                    user: userObjectId,
+                    totalScore: scoreEarned,
+                    correctAnswers: isCorrect ? 1 : 0,
+                    wrongAnswers: isCorrect ? 0 : 1,
+                    averageResponseTimeMs: safeResponseTimeMs
+                  }
+                }
+              }
+            );
+          }
 
           socket.emit("trivia:answer-result", {
             triviaGameId,
@@ -359,25 +289,12 @@ export const setupTriviaSocket = (io: Server): void => {
             scoreEarned,
             selectedAnswerIndex,
             correctAnswerIndex: currentQuestion.correctAnswerIndex,
-            correctAnswer:
-              currentQuestion.answers[currentQuestion.correctAnswerIndex],
+            correctAnswer: currentQuestion.answers[currentQuestion.correctAnswerIndex],
             explanation: currentQuestion.explanation,
             at: new Date().toISOString()
           });
 
-          io.to(triviaRoomName(triviaGameId)).emit("trivia:leaderboard-updated", {
-            triviaGameId,
-            leaderboard,
-            at: new Date().toISOString()
-          });
-
-          ack?.({
-            ok: true,
-            data: {
-              isCorrect,
-              scoreEarned
-            }
-          });
+          ack?.({ ok: true, data: { isCorrect, scoreEarned } });
         } catch (error) {
           console.error("trivia:submit-answer error:", error);
           ack?.({ ok: false, message: "Server error while submitting answer" });

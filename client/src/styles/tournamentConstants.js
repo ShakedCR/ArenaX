@@ -13,8 +13,32 @@ export const INITIAL_TOURNAMENT_FORM = {
   entryFee: 0,
   maxParticipants: 2,
   type: 'open',
-  privatePassword: ''
+  privatePassword: '',
+  // Trivia-specific fields
+  category: 'General',
+  difficulty: 'medium',
+  questionCount: 10,
+  timePerQuestion: 20,
 }
+
+export const TRIVIA_CATEGORIES = [
+  'General',
+  'Cyber Security',
+  'Network Security',
+  'Web Security',
+  'Movies',
+  'Gaming',
+  'Sports',
+  'Football',
+  'History',
+  'Science',
+  'Technology',
+  'Music',
+]
+
+export const TRIVIA_DIFFICULTIES = ['easy', 'medium', 'hard']
+
+export const TRIVIA_MAX_PLAYERS = 10
 
 export const BLACKJACK_MAX_PLAYERS = 6
 export const DEFAULT_MAX_PLAYERS = 12

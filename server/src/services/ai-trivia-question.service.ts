@@ -213,26 +213,6 @@ const validateAndNormalizeQuestions = (
   return validQuestions.slice(0, questionCount);
 };
 
-const generateFallbackQuestions = (
-  topic: string,
-  category: string | undefined,
-  questionCount: number
-): GeneratedTriviaQuestion[] => {
-  const safeCategory = category || "General";
-
-  return Array.from({ length: questionCount }).map((_, index) => ({
-    question: `Fallback question ${index + 1} about ${topic} (${safeCategory})?`,
-    answers: [
-      `Correct answer ${index + 1}`,
-      `Wrong answer A ${index + 1}`,
-      `Wrong answer B ${index + 1}`,
-      `Wrong answer C ${index + 1}`
-    ],
-    correctAnswerIndex: 0,
-    explanation: `The correct answer is "Correct answer ${index + 1}" because it matches the fallback question topic.`
-  }));
-};
-
 const callOllama = async (prompt: string): Promise<string> => {
   const response = await fetch(`${OLLAMA_URL}/api/chat`, {
     method: "POST",
@@ -296,12 +276,7 @@ Do not repeat answers inside the same question.
       return validateAndNormalizeQuestions(rawJson, params.questionCount);
     } catch (secondError) {
       console.error("AI trivia generation failed again:", secondError);
-
-      return generateFallbackQuestions(
-        params.topic,
-        params.category,
-        params.questionCount
-      );
+      throw new Error("Failed to generate trivia questions after two attempts. Make sure Ollama is running.");
     }
   }
 };

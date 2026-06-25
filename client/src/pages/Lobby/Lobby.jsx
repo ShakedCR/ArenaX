@@ -74,7 +74,7 @@ export default function Lobby() {
       await api.post(`/tournaments/${tournament._id}/join`)
       navigate(`/tournament/${tournament._id}/waiting`)
     } catch (err) {
-      console.log('Join failed:', err.response?.data)
+      console.error('[Lobby] Join failed:', err.response?.data)
 
       if (err.response?.data?.message === 'User already joined this tournament') {
         navigate(`/tournament/${tournament._id}/waiting`)
@@ -88,7 +88,7 @@ export default function Lobby() {
       await fetchTournaments()
       await refreshUser()
     } catch (err) {
-      console.log('Open failed:', err)
+      console.error('[Lobby] Open failed:', err)
     }
   }
 

@@ -13,6 +13,7 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const gameIcons = {
   Blackjack: '♠',
+  Trivia: '❓',
 }
 
 export default function WaitingRoom() {
@@ -20,26 +21,15 @@ export default function WaitingRoom() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [tournament, setTournament] = useState(null)
+  const [triviaGame, setTriviaGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
   const userId = user?.id || user?._id
+  const isTrivia = tournament?.gameTitle === 'Trivia'
 
-  const syncTournament = async () => {
-    const res = await api.get(`/tournaments/${id}`)
-    const t = res.data.tournament
-    setTournament(t)
-
-    const gameId = t?.matchData?.currentGameId
-    if (t?.status === 'ongoing' && gameId) {
-      navigate(`/game/blackjack/${gameId}`)
-      return t
-    }
-
-    return t
-  }
-
+  // ── Fetch tournament ────────────────────────────────────────────────────────
   const fetchTournament = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true)
     try {
@@ -47,10 +37,12 @@ export default function WaitingRoom() {
       const t = res.data.tournament
       setTournament(t)
 
-      // If tournament already started → go to game
-      const gameId = t?.matchData?.currentGameId
-      if (t?.status === 'ongoing' && gameId) {
-        navigate(`/game/blackjack/${gameId}`)
+      // Blackjack only: if already started → go to game
+      if (t?.gameTitle !== 'Trivia') {
+        const gameId = t?.matchData?.currentGameId
+        if (t?.status === 'ongoing' && gameId) {
+          navigate(`/game/blackjack/${gameId}`)
+        }
       }
     } catch {
       setError('Tournament not found')
@@ -59,12 +51,19 @@ export default function WaitingRoom() {
     }
   }, [id, navigate])
 
-  // Fetch tournament on mount
   useEffect(() => {
     fetchTournament()
   }, [fetchTournament])
 
-  // Real-time socket listeners
+  // Fetch triviaGame once we know this is a Trivia tournament
+  useEffect(() => {
+    if (!isTrivia) return
+    api.get(`/trivia/tournament/${id}`)
+      .then(res => setTriviaGame(res.data.triviaGame))
+      .catch(() => {})
+  }, [isTrivia, id])
+
+  // ── General socket: participant updates + blackjack start ───────────────────
   useEffect(() => {
     if (!userId) return
     const sock = connectSocket(localStorage.getItem('token'))
@@ -75,8 +74,6 @@ export default function WaitingRoom() {
 
     const handleParticipantAdded = (data) => {
       if (data.tournamentId !== id) return
-      // Re-fetch instead of patching state manually — avoids race condition where
-      // the event fires before the initial fetch completes (prev would be null).
       fetchTournament(false)
     }
 
@@ -84,25 +81,46 @@ export default function WaitingRoom() {
     navigate(`/game/blackjack/${data.gameId}`)
   })
 
-  return () => {
-    sock.emit('leave-tournament-room', id)
-    sock.off('tournament:participant-added')
-    sock.off('blackjack:tournament-started')
-  }
-}, [id, userId, navigate, fetchTournament])
+  // ── Trivia socket: join trivia room + listen for first question ─────────────
+  useEffect(() => {
+    if (!triviaGame?._id || !userId) return
+    const sock = connectSocket(localStorage.getItem('token'))
 
-// ▶️ start tournament
-const handleStart = async () => {
-  setStarting(true)
-  setError('')
+    sock.emit('trivia:join', { triviaGameId: triviaGame._id })
 
-  try {
-    const res = await api.patch(`/tournaments/${id}/start`)
+    const handleQuestionStarted = (data) => {
+      // Pass the question data in router state so Trivia.jsx can display
+      // the first question immediately — without it, the page would miss
+      // question-started because it wasn't in the room yet when it fired.
+      navigate(`/game/trivia/${triviaGame._id}`, {
+        state: { tournamentId: id, firstQuestion: data }
+      })
+    }
 
-    const gameId = res?.data?.gameId
-    if (gameId) {
-      navigate(`/game/blackjack/${gameId}`)
-      return
+    sock.on('trivia:question-started', handleQuestionStarted)
+
+    return () => {
+      sock.emit('trivia:leave', { triviaGameId: triviaGame._id })
+      sock.off('trivia:question-started', handleQuestionStarted)
+    }
+  }, [triviaGame?._id, userId, id, navigate])
+
+  // ── Start handlers ──────────────────────────────────────────────────────────
+  const handleBlackjackStart = async () => {
+    setStarting(true)
+    setError('')
+    try {
+      const res = await api.patch(`/tournaments/${id}/start`)
+      const gameId = res?.data?.gameId
+      if (gameId) {
+        navigate(`/game/blackjack/${gameId}`)
+        return
+      }
+      setError('Tournament started but no game was returned')
+      setStarting(false)
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Failed to start tournament')
+      setStarting(false)
     }
 
     setError('Tournament started but no game was returned')
@@ -114,50 +132,123 @@ const handleStart = async () => {
   }
 }
 
-const creatorId = tournament?.createdBy?._id || tournament?.createdBy?.id || tournament?.createdBy
-const isCreator = userId && creatorId && userId.toString() === creatorId.toString()
-const canStart = isCreator && tournament?.status === 'open' && tournament?.participants?.length >= 2
+  const handleTriviaStart = () => {
+    if (!triviaGame?._id) return
+    setStarting(true)
+    setError('')
+    const sock = connectSocket(localStorage.getItem('token'))
+    sock.emit('trivia:start', { triviaGameId: triviaGame._id }, (ack) => {
+      if (!ack?.ok) {
+        setError(ack?.message || 'Failed to start trivia game')
+        setStarting(false)
+      }
+      // On success: navigation is triggered by trivia:question-started listener above
+    })
+  }
 
-if (loading) return (
-  <Box sx={{ bgcolor: DARK, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-    <CircularProgress sx={{ color: GOLD }} />
-  </Box>
-)
+  const handleStart = isTrivia ? handleTriviaStart : handleBlackjackStart
 
-return (
-  <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
-    <AuthNavbar
-      username={user?.username || 'Player'}
-      tokens={user?.walletBalance || 0}
-    />
+  // ── Derived state ───────────────────────────────────────────────────────────
+  const creatorId = tournament?.createdBy?._id || tournament?.createdBy?.id || tournament?.createdBy
+  const isCreator = userId && creatorId && userId.toString() === creatorId.toString()
+  const participantCount = tournament?.participants?.length || 0
 
-    <Box sx={{ maxWidth: 600, mx: 'auto', py: 8, px: 4 }}>
-      <Box sx={{ textAlign: 'center', mb: 6 }}>
-        <Typography sx={{ fontSize: 40, mb: 1 }}>
-          {gameIcons[tournament?.gameTitle]}
-        </Typography>
-        <Typography sx={{ fontFamily: BEBAS, fontSize: 40, letterSpacing: 3, mb: 1 }}>
-          {tournament?.title}
-        </Typography>
-        <Typography sx={{ color: '#666', fontSize: 14 }}>
-          {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee}
-        </Typography>
-      </Box>
+  const canStart = isCreator && (
+    isTrivia
+      ? triviaGame?.status === 'waiting' && participantCount >= 2
+      : tournament?.status === 'open' && participantCount >= 2
+  )
 
-      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography sx={{ fontFamily: BEBAS, fontSize: 20, letterSpacing: 2 }}>
-            PLAYERS
+  const waitingLabel = 'Waiting for other players'
+
+  if (loading) return (
+    <Box sx={{ bgcolor: DARK, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <CircularProgress sx={{ color: GOLD }} />
+    </Box>
+  )
+
+  return (
+    <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
+      <AuthNavbar
+        username={user?.username || 'Player'}
+        tokens={user?.walletBalance || 0}
+      />
+
+      <Box sx={{ maxWidth: 600, mx: 'auto', py: 8, px: 4 }}>
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography sx={{ fontSize: 40, mb: 1 }}>
+            {gameIcons[tournament?.gameTitle] || '🎮'}
           </Typography>
           <Typography sx={{ color: GOLD, fontSize: 14 }}>
             {tournament?.participants?.length || 0} / {tournament?.maxParticipants}
           </Typography>
+          <Typography sx={{ color: '#666', fontSize: 14 }}>
+            {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee}
+          </Typography>
+          {isTrivia && triviaGame && (
+            <Typography sx={{ color: '#555', fontSize: 12, mt: 0.5 }}>
+              {triviaGame.topic} · {triviaGame.questionCount} questions · {triviaGame.timePerQuestion}s each · {triviaGame.difficulty}
+            </Typography>
+          )}
+        </Box>
+
+        <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 4, mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography sx={{ fontFamily: BEBAS, fontSize: 20, letterSpacing: 2 }}>
+              PLAYERS
+            </Typography>
+            <Typography sx={{ color: GOLD, fontSize: 14 }}>
+              {participantCount} / {tournament?.maxParticipants}
+            </Typography>
+          </Box>
+
+          {participantCount === 0 ? (
+            <Typography sx={{ color: '#666', fontSize: 13, textAlign: 'center', py: 2 }}>
+              No players yet
+            </Typography>
+          ) : (
+            tournament?.participants?.map((p, i) => (
+              <Box key={i} sx={{
+                display: 'flex', alignItems: 'center', gap: 2,
+                py: 1.5, borderBottom: '1px solid rgba(255,255,255,0.05)'
+              }}>
+                <Box sx={{
+                  width: 32, height: 32, borderRadius: '50%',
+                  bgcolor: 'rgba(201,168,76,0.1)',
+                  border: '1px solid rgba(201,168,76,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 13, color: GOLD
+                }}>
+                  {i + 1}
+                </Box>
+                <Typography sx={{ fontSize: 14 }}>
+                  {p.username || p.fullName || 'Player'}
+                </Typography>
+                {(p.id === userId || p._id === userId) && (
+                  <Typography sx={{ color: GOLD, fontSize: 11, ml: 'auto' }}>You</Typography>
+                )}
+              </Box>
+            ))
+          )}
         </Box>
 
         {tournament?.participants?.length === 0 ? (
           <Typography sx={{ color: '#666', fontSize: 13, textAlign: 'center', py: 2 }}>
             No players yet
           </Typography>
+        )}
+
+        {isCreator ? (
+          <Button fullWidth onClick={handleStart} disabled={!canStart || starting}
+            sx={{
+              bgcolor: canStart ? GOLD : '#3a3a3a',
+              color: canStart ? DARK : '#666',
+              py: 1.5, fontWeight: 700, fontSize: 15,
+              '&:hover': { bgcolor: canStart ? '#E8C97A' : '#3a3a3a' },
+              '&.Mui-disabled': { bgcolor: '#3a3a3a', color: '#666' }
+            }}>
+            {starting ? 'Starting...' : canStart ? 'Start Tournament' : waitingLabel}
+          </Button>
         ) : (
           tournament?.participants?.map((p, i) => (
             <Box key={i} sx={{
@@ -214,6 +305,5 @@ return (
         ← Back to Lobby
       </Button>
     </Box>
-  </Box>
-)
+  )
 }
