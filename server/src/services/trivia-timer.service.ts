@@ -1,6 +1,9 @@
 import { Server } from "socket.io";
 import TriviaGame from "../models/trivia-game.model";
 import Tournament from "../models/tournament.model";
+import User from "../models/user.model";
+import Transaction from "../models/transaction.model";
+import { buildRankedLeaderboard } from "../utils/trivia.utils";
 
 type TriviaTimerState = {
   questionTimer?: NodeJS.Timeout;
@@ -16,22 +19,6 @@ const buildPublicQuestion = (question: any, questionIndex: number) => ({
   question: question.question,
   answers: question.answers
 });
-
-const buildRankedLeaderboard = (leaderboard: any[]) => {
-  const sorted = [...leaderboard].sort((a, b) => {
-    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-    if (b.correctAnswers !== a.correctAnswers) {
-      return b.correctAnswers - a.correctAnswers;
-    }
-
-    return a.averageResponseTimeMs - b.averageResponseTimeMs;
-  });
-
-  return sorted.map((item, index) => ({
-    rank: index + 1,
-    ...(item.toObject?.() ?? item)
-  }));
-};
 
 export const clearTriviaTimers = (triviaGameId: string): void => {
   const state = timers.get(triviaGameId);
@@ -69,6 +56,10 @@ export const startTriviaQuestionTimer = async (
   }
 
   const room = triviaRoomName(triviaGameId);
+  const questionStartedAt = new Date();
+
+  triviaGame.questionStartedAt = questionStartedAt;
+  await triviaGame.save();
 
   io.to(room).emit("trivia:question-started", {
     triviaGameId,
@@ -78,7 +69,7 @@ export const startTriviaQuestionTimer = async (
       currentQuestion,
       triviaGame.currentQuestionIndex
     ),
-    serverStartedAt: new Date().toISOString()
+    serverStartedAt: questionStartedAt.toISOString()
   });
 
   const questionTimer = setTimeout(async () => {
@@ -110,6 +101,7 @@ export const endCurrentTriviaQuestion = async (
   }
 
   const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+  const tournamentId = triviaGame.tournament.toString();
 
   io.to(triviaRoomName(triviaGameId)).emit("trivia:question-ended", {
     triviaGameId,
@@ -121,6 +113,13 @@ export const endCurrentTriviaQuestion = async (
     at: new Date().toISOString()
   });
 
+  // Notify the tournament room so the standings page refreshes live
+  io.to(`tournament:${tournamentId}`).emit("tournament:update", {
+    tournamentId,
+    leaderboard,
+    at: new Date().toISOString()
+  });
+
   const nextQuestionTimer = setTimeout(async () => {
     await moveToNextTriviaQuestion(io, triviaGameId);
   }, 5000);
@@ -128,6 +127,21 @@ export const endCurrentTriviaQuestion = async (
   timers.set(triviaGameId, {
     nextQuestionTimer
   });
+};
+
+export const recoverInProgressTriviaGames = async (io: Server): Promise<void> => {
+  const stuckGames = await TriviaGame.find({ status: "in_progress" });
+
+  if (stuckGames.length === 0) return;
+
+  console.log(`[trivia] Recovering ${stuckGames.length} in-progress game(s) after restart`);
+
+  for (const game of stuckGames) {
+    const id = (game._id as any).toString();
+    if (!timers.has(id)) {
+      await startTriviaQuestionTimer(io, id);
+    }
+  }
 };
 
 export const moveToNextTriviaQuestion = async (
@@ -158,13 +172,60 @@ export const moveToNextTriviaQuestion = async (
     tournament.status = "completed";
 
     await triviaGame.save();
-    await tournament.save();
 
     clearTriviaTimers(triviaGameId);
 
+    // ── Prize distribution + result ───────────────────────────────────────────
+    const prizePool: number = (tournament as any).prizePool || 0;
+    const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+
+    const topScore = leaderboard[0]?.totalScore ?? 0;
+    const winners = topScore > 0 ? leaderboard.filter(e => e.totalScore === topScore) : [];
+    const isTie = winners.length > 1;
+    const splitPrize = prizePool > 0 && winners.length > 0 ? Math.floor(prizePool / winners.length) : 0;
+    const singleWinnerId = !isTie && winners[0]
+      ? (winners[0].user?._id?.toString() ?? winners[0].user?.toString())
+      : null;
+
+    // Save winner to tournament.result so profile win rate works
+    await Tournament.findByIdAndUpdate(tournament._id, {
+      status: "completed",
+      "result.isTie": isTie,
+      ...(singleWinnerId ? { "result.winner": singleWinnerId } : {}),
+    });
+
+    for (const winner of winners) {
+      if (splitPrize <= 0) break;
+      const winnerId = winner.user?._id?.toString() ?? winner.user?.toString();
+      if (!winnerId) continue;
+
+      const updatedUser = await User.findByIdAndUpdate(
+        winnerId,
+        { $inc: { walletBalance: splitPrize } },
+        { new: true }
+      ).select("walletBalance");
+
+      await Transaction.create({
+        user: winnerId,
+        tournament: tournament._id,
+        amount: splitPrize,
+        type: "prize",
+        status: "completed",
+        description: isTie ? "Trivia tournament prize (tie split)" : "Trivia tournament prize",
+      });
+
+      if (updatedUser) {
+        io.to(`user:${winnerId}`).emit("wallet:updated", {
+          walletBalance: updatedUser.walletBalance,
+        });
+      }
+    }
+
+    io.emit("tournament:status-changed", { tournamentId: tournament._id.toString(), status: "completed" });
+
     io.to(triviaRoomName(triviaGameId)).emit("trivia:game-completed", {
       triviaGameId,
-      leaderboard: buildRankedLeaderboard(triviaGame.leaderboard),
+      leaderboard,
       at: new Date().toISOString()
     });
 

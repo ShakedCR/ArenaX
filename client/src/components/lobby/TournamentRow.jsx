@@ -8,6 +8,7 @@ const DARK3 = '#1C1C28'
 
 const gameIcons = {
   Blackjack: '♠',
+  Trivia: '❓',
 }
 
 const statusColors = {

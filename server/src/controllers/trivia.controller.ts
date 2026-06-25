@@ -2,6 +2,8 @@ import { Response } from "express";
 import { Types } from "mongoose";
 import Tournament from "../models/tournament.model";
 import TriviaGame from "../models/trivia-game.model";
+import User from "../models/user.model";
+import Transaction from "../models/transaction.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { generateTriviaQuestionsWithAI } from "../services/ai-trivia-question.service";
 import { getIO } from "../socket";
@@ -10,6 +12,7 @@ import {
   endCurrentTriviaQuestion,
   startTriviaQuestionTimer
 } from "../services/trivia-timer.service";
+import { calculateTriviaScore, buildRankedLeaderboard } from "../utils/trivia.utils";
 
 const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
 
@@ -49,47 +52,12 @@ const generateInviteCode = (): string => {
   return `${randomPart}${timePart}`;
 };
 
-const calculateScore = (
-  isCorrect: boolean,
-  responseTimeMs: number,
-  timePerQuestion: number
-): number => {
-  if (!isCorrect) return 0;
-
-  const maxTimeMs = timePerQuestion * 1000;
-  const safeResponseTime = Math.min(Math.max(responseTimeMs, 0), maxTimeMs);
-
-  const remainingRatio = Math.max(
-    0,
-    (maxTimeMs - safeResponseTime) / maxTimeMs
-  );
-
-  return 500 + Math.round(500 * remainingRatio);
-};
-
 const buildPublicQuestions = (questions: any[], revealAnswers = false) => {
   return questions.map((question) => ({
     question: question.question,
     answers: question.answers,
     explanation: revealAnswers ? question.explanation : undefined,
     correctAnswerIndex: revealAnswers ? question.correctAnswerIndex : undefined
-  }));
-};
-
-const buildRankedLeaderboard = (leaderboard: any[]) => {
-  const sorted = [...leaderboard].sort((a, b) => {
-    if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
-
-    if (b.correctAnswers !== a.correctAnswers) {
-      return b.correctAnswers - a.correctAnswers;
-    }
-
-    return a.averageResponseTimeMs - b.averageResponseTimeMs;
-  });
-
-  return sorted.map((item, index) => ({
-    rank: index + 1,
-    ...(item.toObject?.() ?? item)
   }));
 };
 
@@ -111,7 +79,6 @@ export const createTriviaTournament = async (
     const {
       title,
       description,
-      topic,
       category,
       difficulty,
       questionCount,
@@ -126,21 +93,15 @@ export const createTriviaTournament = async (
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    if (!title || !topic || !questionCount || !timePerQuestion || !maxParticipants) {
+    if (!title || !questionCount || !timePerQuestion || !maxParticipants) {
       return res.status(400).json({
         message:
-          "title, topic, questionCount, timePerQuestion and maxParticipants are required"
+          "title, questionCount, timePerQuestion and maxParticipants are required"
       });
     }
 
-    const safeTopic = String(topic).trim();
     const safeCategory = category ? String(category).trim() : "General";
-
-    if (safeTopic.length < 2 || safeTopic.length > 120) {
-      return res.status(400).json({
-        message: "Topic must be between 2 and 120 characters"
-      });
-    }
+    const safeTopic = safeCategory;
 
     if (safeCategory.length < 2 || safeCategory.length > 80) {
       return res.status(400).json({
@@ -174,9 +135,9 @@ export const createTriviaTournament = async (
 
     const safeMaxParticipants = Number(maxParticipants);
 
-    if (!Number.isInteger(safeMaxParticipants) || safeMaxParticipants < 1) {
+    if (!Number.isInteger(safeMaxParticipants) || safeMaxParticipants < 2 || safeMaxParticipants > 10) {
       return res.status(400).json({
-        message: "maxParticipants must be a positive number"
+        message: "maxParticipants must be between 2 and 10 for trivia"
       });
     }
 
@@ -200,6 +161,15 @@ export const createTriviaTournament = async (
       questionCount: safeQuestionCount
     });
 
+    const safeEntryFee = Number(entryFee) || 0;
+
+    if (safeEntryFee > 0) {
+      const creator = await User.findById(req.userId).select("walletBalance");
+      if (!creator || creator.walletBalance < safeEntryFee) {
+        return res.status(400).json({ message: "Insufficient wallet balance to create this tournament" });
+      }
+    }
+
     const tournament = await Tournament.create({
       title,
       description,
@@ -207,17 +177,31 @@ export const createTriviaTournament = async (
       gameMode: "quiz",
       platform: "web",
       format: "league",
-      entryFee: entryFee ?? 0,
-      prizePool: 0,
+      entryFee: safeEntryFee,
+      prizePool: safeEntryFee,
       maxParticipants: safeMaxParticipants,
       startDate: new Date(),
       createdBy: req.userId,
       participants: [new Types.ObjectId(req.userId)],
-      status: "draft",
+      status: "open",
       isPrivate: isPrivate ?? false,
       privatePassword: isPrivate ? String(privatePassword) : "",
       inviteCode: generateInviteCode()
     });
+
+    if (safeEntryFee > 0) {
+      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -safeEntryFee } });
+      await Transaction.create({
+        user: req.userId,
+        tournament: tournament._id,
+        amount: safeEntryFee,
+        type: "entry_fee",
+        status: "completed",
+        description: `Entry fee for tournament: ${title}`
+      });
+      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
+    }
 
     const triviaGame = await TriviaGame.create({
       tournament: tournament._id,
@@ -232,6 +216,8 @@ export const createTriviaTournament = async (
       answers: [],
       leaderboard: []
     });
+
+    getIO().emit("tournament:created", { tournament });
 
     return res.status(201).json({
       message: "Trivia tournament created successfully",
@@ -319,9 +305,9 @@ export const startTriviaGame = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    if (tournament.participants.length < 1) {
+    if (tournament.participants.length < 2) {
       return res.status(400).json({
-        message: "At least one participant is required to start trivia"
+        message: "At least 2 participants are required to start trivia"
       });
     }
 
@@ -333,6 +319,8 @@ export const startTriviaGame = async (req: AuthRequest, res: Response) => {
 
     await triviaGame.save();
     await tournament.save();
+
+    getIO().emit("tournament:status-changed", { tournamentId: tournament._id.toString(), status: "ongoing" });
 
     await startTriviaQuestionTimer(getIO(), triviaGameId);
 
@@ -435,7 +423,7 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
 
     const isCorrect = selectedAnswerIndex === currentQuestion.correctAnswerIndex;
 
-    const scoreEarned = calculateScore(
+    const scoreEarned = calculateTriviaScore(
       isCorrect,
       safeResponseTimeMs,
       triviaGame.timePerQuestion
@@ -486,12 +474,6 @@ export const submitTriviaAnswer = async (req: AuthRequest, res: Response) => {
     await triviaGame.save();
 
     const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
-
-    getIO().to(`trivia:${triviaGameId}`).emit("trivia:leaderboard-updated", {
-      triviaGameId,
-      leaderboard,
-      at: new Date().toISOString()
-    });
 
     return res.status(200).json({
       message: "Answer submitted successfully",
@@ -560,6 +542,83 @@ export const nextTriviaQuestion = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       message: "Server error while moving to next question"
     });
+  }
+};
+
+export const getTriviaStandings = async (req: AuthRequest, res: Response) => {
+  try {
+    const tournamentId = req.params.tournamentId as string;
+    if (!isValidObjectId(tournamentId)) {
+      return res.status(400).json({ message: "Invalid tournament ID" });
+    }
+
+    const tournament = await Tournament.findById(tournamentId).populate(
+      "participants",
+      "fullName username avatarUrl"
+    );
+
+    if (!tournament) {
+      return res.status(404).json({ message: "Tournament not found" });
+    }
+
+    const triviaGame = await TriviaGame.findOne({ tournament: tournamentId });
+
+    if (!triviaGame) {
+      return res.status(404).json({ message: "Trivia game not found" });
+    }
+
+    const leaderboard = buildRankedLeaderboard(triviaGame.leaderboard);
+    const topScore = leaderboard[0]?.totalScore ?? 0;
+
+    const players = (tournament.participants as any[]).map((p: any) => {
+      const pid = p._id.toString();
+      const entry = leaderboard.find(
+        (e) => (e.user?._id ?? e.user)?.toString() === pid
+      );
+
+      let status: "active" | "winner" | "completed";
+      if (tournament.status === "completed") {
+        status =
+          entry && entry.totalScore === topScore && topScore > 0
+            ? "winner"
+            : "completed";
+      } else {
+        status = "active";
+      }
+
+      return {
+        _id: pid,
+        username: p.username,
+        fullName: p.fullName,
+        avatarUrl: p.avatarUrl,
+        totalScore: entry?.totalScore ?? 0,
+        correctAnswers: entry?.correctAnswers ?? 0,
+        wrongAnswers: entry?.wrongAnswers ?? 0,
+        rank: entry?.rank ?? null,
+        status,
+      };
+    });
+
+    return res.status(200).json({
+      tournament: {
+        _id: tournament._id,
+        title: tournament.title,
+        gameTitle: tournament.gameTitle,
+        status: tournament.status,
+        prizePool: tournament.prizePool,
+        startDate: tournament.startDate,
+        maxParticipants: tournament.maxParticipants,
+        category: triviaGame.category,
+        difficulty: triviaGame.difficulty,
+        questionCount: triviaGame.questionCount,
+        currentQuestionIndex: triviaGame.currentQuestionIndex,
+      },
+      players,
+      stages: [],
+    });
+  } catch (error) {
+    console.error("Get trivia standings error:", error);
+    return res.status(500).json({ message: "Server error" });
   }
 };
 

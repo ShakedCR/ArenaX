@@ -47,6 +47,7 @@ export interface ITriviaGame extends Document {
   answers: ITriviaAnswer[];
   leaderboard: ITriviaPlayerScore[];
   startedAt?: Date;
+  questionStartedAt?: Date;
   completedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -186,6 +187,9 @@ const triviaGameSchema = new Schema<ITriviaGame>(
       }
     ],
     startedAt: {
+      type: Date
+    },
+    questionStartedAt: {
       type: Date
     },
     completedAt: {

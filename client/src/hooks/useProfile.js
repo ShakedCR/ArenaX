@@ -40,7 +40,7 @@ export default function useProfile() {
 
         setTournaments(myTournaments)
       })
-      .catch(err => console.log(err))
+      .catch(err => console.error('[useProfile] fetch error:', err))
       .finally(() => setLoading(false))
   }, [userId])
 

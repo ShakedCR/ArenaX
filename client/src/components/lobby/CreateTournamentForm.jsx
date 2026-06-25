@@ -3,7 +3,9 @@ import { Box, Button, MenuItem, Select, TextField, Typography } from '@mui/mater
 import { GOLD, DARK, DARK3 } from '../../styles/themeConstants'
 import {
   TOURNAMENT_GAMES,
-  TOURNAMENT_TYPES
+  TOURNAMENT_TYPES,
+  TRIVIA_CATEGORIES,
+  TRIVIA_DIFFICULTIES,
 } from '../../styles/tournamentConstants'
 
 const inputSx = {
@@ -20,11 +22,22 @@ const inputSx = {
   }
 }
 
+const selectSx = {
+  color: 'white',
+  fontSize: 14,
+  bgcolor: DARK3,
+  '& .MuiOutlinedInput-notchedOutline': { borderColor: 'rgba(201,168,76,0.2)' },
+  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: GOLD },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: GOLD },
+  '& .MuiSvgIcon-root': { color: '#666' }
+}
+
 export default function CreateTournamentForm({
   form,
   error,
   loading,
   isBlackjack,
+  isTrivia,
   maxAllowed,
   onChange,
   onTypeChange,
@@ -53,42 +66,98 @@ export default function CreateTournamentForm({
         displayEmpty
         value={form.gameTitle}
         onChange={onChange('gameTitle')}
-        sx={{
-          mb: 2,
-          color: form.gameTitle ? 'white' : '#666',
-          fontSize: 14,
-          bgcolor: DARK3,
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(201,168,76,0.2)'
-          },
-          '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: GOLD
-          },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: GOLD
-          },
-          '& .MuiSvgIcon-root': {
-            color: '#666'
-          }
-        }}
+        sx={{ mb: 2, ...selectSx, color: form.gameTitle ? 'white' : '#666' }}
       >
-        <MenuItem value="" disabled>
-          Select a game
-        </MenuItem>
-
+        <MenuItem value="" disabled>Select a game</MenuItem>
         {TOURNAMENT_GAMES.map(game => (
-          <MenuItem key={game} value={game}>
-            {game}
-          </MenuItem>
+          <MenuItem key={game} value={game}>{game}</MenuItem>
         ))}
       </Select>
 
+      {/* ── Trivia-specific fields ───────────────────────────── */}
+      {isTrivia && (
+        <>
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+                Category
+              </Typography>
+              <Select
+                fullWidth
+                value={form.category}
+                onChange={onChange('category')}
+                sx={selectSx}
+              >
+                {TRIVIA_CATEGORIES.map(c => (
+                  <MenuItem key={c} value={c}>{c}</MenuItem>
+                ))}
+              </Select>
+            </Box>
+
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+                Difficulty
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 0.5, height: 56, alignItems: 'center' }}>
+                {TRIVIA_DIFFICULTIES.map(d => (
+                  <Box
+                    key={d}
+                    onClick={() => onChange('difficulty')({ target: { value: d } })}
+                    sx={{
+                      flex: 1, height: '100%', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 1, cursor: 'pointer', fontSize: 12,
+                      textTransform: 'capitalize',
+                      bgcolor: form.difficulty === d ? 'rgba(201,168,76,0.15)' : DARK3,
+                      border: `1px solid ${form.difficulty === d ? GOLD : 'rgba(255,255,255,0.1)'}`,
+                      color: form.difficulty === d ? GOLD : '#888',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {d}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+                Questions (1–50)
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                value={form.questionCount}
+                onChange={onChange('questionCount')}
+                slotProps={{ input: { min: 1, max: 50 } }}
+                sx={inputSx}
+              />
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+                Seconds / Question (5–120)
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                value={form.timePerQuestion}
+                onChange={onChange('timePerQuestion')}
+                slotProps={{ input: { min: 5, max: 120 } }}
+                sx={inputSx}
+              />
+            </Box>
+          </Box>
+        </>
+      )}
+
+      {/* ── Common fields ───────────────────────────────────── */}
       <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
             Entry Fee (Tokens)
           </Typography>
-
           <TextField
             fullWidth
             type="number"
@@ -100,15 +169,14 @@ export default function CreateTournamentForm({
 
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
-            Max Players {isBlackjack ? '(2–6)' : '(2–12)'}
+            Max Players {isBlackjack ? '(2–6)' : isTrivia ? '(1–50)' : '(2–12)'}
           </Typography>
-
           <TextField
             fullWidth
             type="number"
             value={form.maxParticipants}
             onChange={onChange('maxParticipants')}
-            slotProps={{ input: { min: 2, max: maxAllowed } }}
+            slotProps={{ input: { min: isTrivia ? 1 : 2, max: maxAllowed } }}
             sx={inputSx}
           />
         </Box>
@@ -124,17 +192,11 @@ export default function CreateTournamentForm({
             key={type}
             onClick={() => onTypeChange(type)}
             sx={{
-              flex: 1,
-              py: 1,
-              textAlign: 'center',
-              borderRadius: 1,
-              cursor: 'pointer',
-              fontSize: 14,
+              flex: 1, py: 1, textAlign: 'center',
+              borderRadius: 1, cursor: 'pointer', fontSize: 14,
               textTransform: 'capitalize',
               bgcolor: form.type === type ? 'rgba(201,168,76,0.15)' : DARK3,
-              border: `1px solid ${
-                form.type === type ? GOLD : 'rgba(255,255,255,0.1)'
-              }`,
+              border: `1px solid ${form.type === type ? GOLD : 'rgba(255,255,255,0.1)'}`,
               color: form.type === type ? GOLD : '#888',
               transition: 'all 0.2s'
             }}
@@ -149,7 +211,6 @@ export default function CreateTournamentForm({
           <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
             Tournament Password
           </Typography>
-
           <TextField
             fullWidth
             placeholder="Set a password for your private tournament"
@@ -171,16 +232,14 @@ export default function CreateTournamentForm({
         onClick={onSubmit}
         disabled={loading}
         sx={{
-          bgcolor: GOLD,
-          color: DARK,
-          py: 1.5,
-          fontWeight: 700,
-          fontSize: 15,
+          bgcolor: GOLD, color: DARK, py: 1.5, fontWeight: 700, fontSize: 15,
           '&:hover': { bgcolor: '#E8C97A' },
           '&.Mui-disabled': { bgcolor: '#5a4a20', color: '#888' }
         }}
       >
-        {loading ? 'Creating...' : 'Create Tournament'}
+        {loading
+          ? isTrivia ? 'Generating questions with AI...' : 'Creating...'
+          : 'Create Tournament'}
       </Button>
     </>
   )

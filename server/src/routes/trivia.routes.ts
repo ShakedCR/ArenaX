@@ -3,6 +3,7 @@ import {
   createTriviaTournament,
   getTriviaGameByTournament,
   getTriviaLeaderboard,
+  getTriviaStandings,
   getTriviaTopicSuggestions,
   nextTriviaQuestion,
   startTriviaGame,
@@ -17,6 +18,7 @@ router.get("/topics/suggestions", getTriviaTopicSuggestions);
 router.post("/tournaments", authMiddleware, createTriviaTournament);
 
 router.get("/tournament/:tournamentId", getTriviaGameByTournament);
+router.get("/tournament/:tournamentId/standings", getTriviaStandings);
 
 router.post("/:triviaGameId/start", authMiddleware, startTriviaGame);
 router.post("/:triviaGameId/answer", authMiddleware, submitTriviaAnswer);

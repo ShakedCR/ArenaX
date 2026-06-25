@@ -1,5 +1,6 @@
 import { Box, Modal, Typography } from '@mui/material'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import api from '../../services/api'
 
@@ -10,21 +11,26 @@ import { DARK2, BEBAS } from '../../styles/themeConstants'
 import {
   INITIAL_TOURNAMENT_FORM,
   BLACKJACK_MAX_PLAYERS,
-  DEFAULT_MAX_PLAYERS
+  DEFAULT_MAX_PLAYERS,
+  TRIVIA_MAX_PLAYERS,
 } from '../../styles/tournamentConstants'
 
 export default function CreateTournamentModal({ open, onClose, onCreated }) {
+  const navigate = useNavigate()
   const [form, setForm] = useState(INITIAL_TOURNAMENT_FORM)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [inviteLink, setInviteLink] = useState(null)
+  const [inviteTournamentId, setInviteTournamentId] = useState(null)
 
   const isBlackjack = form.gameTitle === 'Blackjack'
-  const maxAllowed = isBlackjack ? BLACKJACK_MAX_PLAYERS : DEFAULT_MAX_PLAYERS
+  const isTrivia = form.gameTitle === 'Trivia'
+  const maxAllowed = isBlackjack ? BLACKJACK_MAX_PLAYERS : isTrivia ? TRIVIA_MAX_PLAYERS : DEFAULT_MAX_PLAYERS
 
   const resetModal = () => {
     setForm(INITIAL_TOURNAMENT_FORM)
     setInviteLink(null)
+    setInviteTournamentId(null)
     setError('')
     setLoading(false)
   }
@@ -44,24 +50,14 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
             ? Math.min(Number(prev.maxParticipants), BLACKJACK_MAX_PLAYERS)
             : Number(prev.maxParticipants)
 
-        return {
-          ...prev,
-          gameTitle: value,
-          maxParticipants: nextMax
-        }
+        return { ...prev, gameTitle: value, maxParticipants: nextMax }
       }
 
       if (field === 'maxParticipants') {
-        return {
-          ...prev,
-          maxParticipants: Math.min(Number(value), maxAllowed)
-        }
+        return { ...prev, maxParticipants: Math.min(Number(value), maxAllowed) }
       }
 
-      return {
-        ...prev,
-        [field]: value
-      }
+      return { ...prev, [field]: value }
     })
   }
 
@@ -83,7 +79,21 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
       return 'Blackjack tournaments support 2 to 6 players'
     }
 
-    if (!isBlackjack && (maxParticipants < 2 || maxParticipants > DEFAULT_MAX_PLAYERS)) {
+    if (isTrivia) {
+      if (maxParticipants < 1 || maxParticipants > TRIVIA_MAX_PLAYERS) {
+        return 'Trivia tournaments support 1 to 50 players'
+      }
+      const qc = Number(form.questionCount)
+      if (!Number.isInteger(qc) || qc < 1 || qc > 50) {
+        return 'Question count must be between 1 and 50'
+      }
+      const tpq = Number(form.timePerQuestion)
+      if (!Number.isInteger(tpq) || tpq < 5 || tpq > 120) {
+        return 'Time per question must be between 5 and 120 seconds'
+      }
+    }
+
+    if (!isBlackjack && !isTrivia && (maxParticipants < 2 || maxParticipants > DEFAULT_MAX_PLAYERS)) {
       return 'Max players must be between 2 and 12'
     }
 
@@ -92,7 +102,7 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
     }
 
     return ''
-  }, [form, isBlackjack])
+  }, [form, isBlackjack, isTrivia])
 
   const handleSubmit = async () => {
     if (validationError) {
@@ -104,21 +114,46 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
     setError('')
 
     try {
-      const res = await api.post('/tournaments', {
-        title: form.title.trim(),
-        gameTitle: form.gameTitle,
-        entryFee: Number(form.entryFee),
-        maxParticipants: Number(form.maxParticipants),
-        format: 'single_elimination',
-        startDate: new Date(),
-        isPrivate: form.type === 'private',
-        privatePassword: form.type === 'private' ? form.privatePassword : undefined
-      })
+      let res
 
-      const inviteCode = res.data?.tournament?.inviteCode
+      if (isTrivia) {
+        res = await api.post('/trivia/tournaments', {
+          title: form.title.trim(),
+          category: form.category,
+          difficulty: form.difficulty,
+          questionCount: Number(form.questionCount),
+          timePerQuestion: Number(form.timePerQuestion),
+          entryFee: Number(form.entryFee),
+          maxParticipants: Number(form.maxParticipants),
+          isPrivate: form.type === 'private',
+          privatePassword: form.type === 'private' ? form.privatePassword : undefined,
+        })
+      } else {
+        res = await api.post('/tournaments', {
+          title: form.title.trim(),
+          gameTitle: form.gameTitle,
+          entryFee: Number(form.entryFee),
+          maxParticipants: Number(form.maxParticipants),
+          format: 'single_elimination',
+          startDate: new Date(),
+          isPrivate: form.type === 'private',
+          privatePassword: form.type === 'private' ? form.privatePassword : undefined,
+        })
+      }
+
+      const tournament = res.data?.tournament
+      const inviteCode = tournament?.inviteCode
 
       if (form.type === 'private' && inviteCode) {
         setInviteLink(`${window.location.origin}/tournaments/join/${inviteCode}`)
+        setInviteTournamentId(tournament?._id)
+        return
+      }
+
+      // For trivia open tournaments: navigate directly to waiting room
+      if (isTrivia && tournament?._id) {
+        handleClose()
+        navigate(`/tournament/${tournament._id}/waiting`)
         return
       }
 
@@ -132,12 +167,15 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
   }
 
   const handleCopyLink = () => {
-    if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink)
-    }
+    if (inviteLink) navigator.clipboard.writeText(inviteLink)
   }
 
   const handleDone = async () => {
+    if (isTrivia && inviteTournamentId) {
+      handleClose()
+      navigate(`/tournament/${inviteTournamentId}/waiting`)
+      return
+    }
     await onCreated()
     handleClose()
   }
@@ -145,23 +183,16 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
   return (
     <Modal open={open} onClose={handleClose}>
       <Box sx={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
+        position: 'absolute', top: '50%', left: '50%',
         transform: 'translate(-50%, -50%)',
-        bgcolor: DARK2,
-        border: '1px solid rgba(201,168,76,0.2)',
-        borderRadius: 2,
-        p: 4,
-        width: '100%',
-        maxWidth: 480,
-        outline: 'none'
+        bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)',
+        borderRadius: 2, p: 4, width: '100%', maxWidth: 480,
+        outline: 'none', maxHeight: '90vh', overflowY: 'auto'
       }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
           <Typography sx={{ fontFamily: BEBAS, fontSize: 26, letterSpacing: 3 }}>
             {inviteLink ? 'INVITE LINK' : 'CREATE TOURNAMENT'}
           </Typography>
-
           <Typography
             onClick={handleClose}
             sx={{ color: '#666', cursor: 'pointer', fontSize: 20, '&:hover': { color: 'white' } }}
@@ -183,6 +214,7 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
             error={error}
             loading={loading}
             isBlackjack={isBlackjack}
+            isTrivia={isTrivia}
             maxAllowed={maxAllowed}
             onChange={handleChange}
             onTypeChange={handleTypeChange}

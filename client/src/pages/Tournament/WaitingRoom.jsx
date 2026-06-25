@@ -13,6 +13,7 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const gameIcons = {
   Blackjack: '♠',
+  Trivia: '❓',
 }
 
 export default function WaitingRoom() {
@@ -20,12 +21,15 @@ export default function WaitingRoom() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [tournament, setTournament] = useState(null)
+  const [triviaGame, setTriviaGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
 
   const userId = user?.id || user?._id
+  const isTrivia = tournament?.gameTitle === 'Trivia'
 
+  // ── Fetch tournament ────────────────────────────────────────────────────────
   const fetchTournament = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true)
     try {
@@ -33,10 +37,12 @@ export default function WaitingRoom() {
       const t = res.data.tournament
       setTournament(t)
 
-      // If tournament already started → go to game
-      const gameId = t?.matchData?.currentGameId
-      if (t?.status === 'ongoing' && gameId) {
-        navigate(`/game/blackjack/${gameId}`)
+      // Blackjack only: if already started → go to game
+      if (t?.gameTitle !== 'Trivia') {
+        const gameId = t?.matchData?.currentGameId
+        if (t?.status === 'ongoing' && gameId) {
+          navigate(`/game/blackjack/${gameId}`)
+        }
       }
     } catch {
       setError('Tournament not found')
@@ -45,12 +51,19 @@ export default function WaitingRoom() {
     }
   }, [id, navigate])
 
-  // Fetch tournament on mount
   useEffect(() => {
     fetchTournament()
   }, [fetchTournament])
 
-  // Real-time socket listeners
+  // Fetch triviaGame once we know this is a Trivia tournament
+  useEffect(() => {
+    if (!isTrivia) return
+    api.get(`/trivia/tournament/${id}`)
+      .then(res => setTriviaGame(res.data.triviaGame))
+      .catch(() => {})
+  }, [isTrivia, id])
+
+  // ── General socket: participant updates + blackjack start ───────────────────
   useEffect(() => {
     if (!userId) return
     const sock = connectSocket(localStorage.getItem('token'))
@@ -61,8 +74,6 @@ export default function WaitingRoom() {
 
     const handleParticipantAdded = (data) => {
       if (data.tournamentId !== id) return
-      // Re-fetch instead of patching state manually — avoids race condition where
-      // the event fires before the initial fetch completes (prev would be null).
       fetchTournament(false)
     }
 
@@ -81,32 +92,77 @@ export default function WaitingRoom() {
     }
   }, [id, userId, navigate, fetchTournament])
 
-  // ▶️ start tournament
-  const handleStart = async () => {
+  // ── Trivia socket: join trivia room + listen for first question ─────────────
+  useEffect(() => {
+    if (!triviaGame?._id || !userId) return
+    const sock = connectSocket(localStorage.getItem('token'))
+
+    sock.emit('trivia:join', { triviaGameId: triviaGame._id })
+
+    const handleQuestionStarted = (data) => {
+      // Pass the question data in router state so Trivia.jsx can display
+      // the first question immediately — without it, the page would miss
+      // question-started because it wasn't in the room yet when it fired.
+      navigate(`/game/trivia/${triviaGame._id}`, {
+        state: { tournamentId: id, firstQuestion: data }
+      })
+    }
+
+    sock.on('trivia:question-started', handleQuestionStarted)
+
+    return () => {
+      sock.emit('trivia:leave', { triviaGameId: triviaGame._id })
+      sock.off('trivia:question-started', handleQuestionStarted)
+    }
+  }, [triviaGame?._id, userId, id, navigate])
+
+  // ── Start handlers ──────────────────────────────────────────────────────────
+  const handleBlackjackStart = async () => {
     setStarting(true)
     setError('')
-
     try {
       const res = await api.patch(`/tournaments/${id}/start`)
-
       const gameId = res?.data?.gameId
       if (gameId) {
         navigate(`/game/blackjack/${gameId}`)
         return
       }
-
       setError('Tournament started but no game was returned')
       setStarting(false)
     } catch (err) {
-      console.log('Failed to start tournament:', err?.response?.data || err)
       setError(err?.response?.data?.message || 'Failed to start tournament')
       setStarting(false)
     }
   }
 
+  const handleTriviaStart = () => {
+    if (!triviaGame?._id) return
+    setStarting(true)
+    setError('')
+    const sock = connectSocket(localStorage.getItem('token'))
+    sock.emit('trivia:start', { triviaGameId: triviaGame._id }, (ack) => {
+      if (!ack?.ok) {
+        setError(ack?.message || 'Failed to start trivia game')
+        setStarting(false)
+      }
+      // On success: navigation is triggered by trivia:question-started listener above
+    })
+  }
+
+  const handleStart = isTrivia ? handleTriviaStart : handleBlackjackStart
+
+  // ── Derived state ───────────────────────────────────────────────────────────
   const creatorId = tournament?.createdBy?._id || tournament?.createdBy?.id || tournament?.createdBy
   const isCreator = userId && creatorId && userId.toString() === creatorId.toString()
-  const canStart = isCreator && tournament?.status === 'open' && tournament?.participants?.length >= 2
+  const participantCount = tournament?.participants?.length || 0
+
+  const canStart = isCreator && (
+    isTrivia
+      ? triviaGame?.status === 'waiting' && participantCount >= 2
+      : tournament?.status === 'open' && participantCount >= 2
+  )
+
+  const waitingLabel = 'Waiting for other players'
 
   if (loading) return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -124,7 +180,7 @@ export default function WaitingRoom() {
       <Box sx={{ maxWidth: 600, mx: 'auto', py: 8, px: 4 }}>
         <Box sx={{ textAlign: 'center', mb: 6 }}>
           <Typography sx={{ fontSize: 40, mb: 1 }}>
-            {gameIcons[tournament?.gameTitle]}
+            {gameIcons[tournament?.gameTitle] || '🎮'}
           </Typography>
           <Typography sx={{ fontFamily: BEBAS, fontSize: 40, letterSpacing: 3, mb: 1 }}>
             {tournament?.title}
@@ -132,6 +188,11 @@ export default function WaitingRoom() {
           <Typography sx={{ color: '#666', fontSize: 14 }}>
             {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee}
           </Typography>
+          {isTrivia && triviaGame && (
+            <Typography sx={{ color: '#555', fontSize: 12, mt: 0.5 }}>
+              {triviaGame.topic} · {triviaGame.questionCount} questions · {triviaGame.timePerQuestion}s each · {triviaGame.difficulty}
+            </Typography>
+          )}
         </Box>
 
         <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 4, mb: 4 }}>
@@ -140,11 +201,11 @@ export default function WaitingRoom() {
               PLAYERS
             </Typography>
             <Typography sx={{ color: GOLD, fontSize: 14 }}>
-              {tournament?.participants?.length || 0} / {tournament?.maxParticipants}
+              {participantCount} / {tournament?.maxParticipants}
             </Typography>
           </Box>
 
-          {tournament?.participants?.length === 0 ? (
+          {participantCount === 0 ? (
             <Typography sx={{ color: '#666', fontSize: 13, textAlign: 'center', py: 2 }}>
               No players yet
             </Typography>
@@ -189,7 +250,7 @@ export default function WaitingRoom() {
               '&:hover': { bgcolor: canStart ? '#E8C97A' : '#3a3a3a' },
               '&.Mui-disabled': { bgcolor: '#3a3a3a', color: '#666' }
             }}>
-            {starting ? 'Starting...' : canStart ? 'Start Tournament' : `Waiting for players (${tournament?.participants?.length || 0}/2 minimum)`}
+            {starting ? 'Starting...' : canStart ? 'Start Tournament' : waitingLabel}
           </Button>
         ) : (
           <Box sx={{ textAlign: 'center', py: 3, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 2 }}>

@@ -14,6 +14,7 @@ const Lobby             = lazy(() => import('./pages/Lobby/Lobby'))
 const Profile           = lazy(() => import('./pages/Profile/Profile'))
 const Wallet            = lazy(() => import('./pages/Wallet/Wallet'))
 const Blackjack         = lazy(() => import('./pages/Game/Blackjack'))
+const Trivia            = lazy(() => import('./pages/Game/Trivia'))
 const WaitingRoom       = lazy(() => import('./pages/Tournament/WaitingRoom'))
 const TournamentJoin    = lazy(() => import('./pages/Tournament/TournamentJoin'))
 const TournamentsList   = lazy(() => import('./pages/Tournaments/TournamentsList'))
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/tournament/:id/waiting" element={<ProtectedRoute><WaitingRoom /></ProtectedRoute>} />
 
                 <Route path="/game/blackjack/:id" element={<ProtectedRoute><Blackjack /></ProtectedRoute>} />
+                <Route path="/game/trivia/:id" element={<ProtectedRoute><Trivia /></ProtectedRoute>} />
               </Routes>
             </Suspense>
           </BrowserRouter>
