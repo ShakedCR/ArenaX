@@ -6,7 +6,6 @@ import QRCodeDisplay from '../common/QRCodeDisplay'
 
 const GOLD = '#C9A84C'
 const DARK2 = '#12121A'
-const DARK3 = '#1C1C28'
 
 const gameIcons = {
   Blackjack: '♠',
@@ -79,15 +78,38 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
   return (
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 1, px: 3, py: 2, mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 200 }}>
-          <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{title}</Typography>
+        {/* Left: icon + title + private lock */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 220 }}>
+          <Typography sx={{ fontSize: 18 }}>{gameIcons[gameTitle] ?? '🎮'}</Typography>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{title}</Typography>
+              {isPrivate && <Typography sx={{ fontSize: 12 }}>🔒</Typography>}
+            </Box>
+            <Typography sx={{ color: '#555', fontSize: 11 }}>{gameTitle}</Typography>
+          </Box>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Typography sx={{ fontSize: 13 }}>Entry: {entryFee}</Typography>
-          <Typography sx={{ fontSize: 13 }}>Players: {participants?.length || 0}/{maxParticipants}</Typography>
-          <Typography sx={{ fontSize: 12, color: statusTextColors[status] || '#888' }}>{status}</Typography>
+
+        {/* Center: entry fee + players + status badge */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Entry</Typography>
+            <Typography sx={{ color: GOLD, fontSize: 13, fontWeight: 600 }}>⬡ {entryFee}</Typography>
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography sx={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Players</Typography>
+            <Typography sx={{ fontSize: 13, color: '#aaa' }}>{participants?.length || 0}/{maxParticipants}</Typography>
+          </Box>
+          <Box sx={{
+            px: 1.5, py: 0.4, borderRadius: 1,
+            bgcolor: statusColors[status] || '#3a3a3a',
+          }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: statusTextColors[status] || '#888', textTransform: 'capitalize' }}>
+              {status}
+            </Typography>
+          </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, minWidth: 280, justifyContent: 'flex-end' }}>
           {inviteLink && (
             <Button onClick={handleShowQR} disabled={loadingQR} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
               {loadingQR ? <CircularProgress size={20} /> : 'QR'}
