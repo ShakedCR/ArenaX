@@ -1,4 +1,4 @@
-import { Box, Button, MenuItem, Select, TextField, Typography } from '@mui/material'
+import { Autocomplete, Box, Button, MenuItem, Select, TextField, Typography } from '@mui/material'
 
 import { GOLD, DARK, DARK3 } from '../../styles/themeConstants'
 import {
@@ -41,6 +41,7 @@ export default function CreateTournamentForm({
   maxAllowed,
   onChange,
   onTypeChange,
+  onFileChange,
   onSubmit
 }) {
   return (
@@ -82,16 +83,25 @@ export default function CreateTournamentForm({
               <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
                 Category
               </Typography>
-              <Select
-                fullWidth
+              <Autocomplete
+                freeSolo
+                options={TRIVIA_CATEGORIES}
                 value={form.category}
-                onChange={onChange('category')}
-                sx={selectSx}
-              >
-                {TRIVIA_CATEGORIES.map(c => (
-                  <MenuItem key={c} value={c}>{c}</MenuItem>
-                ))}
-              </Select>
+                onInputChange={(_, value) => onChange('category')({ target: { value } })}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Select or type a category..."
+                    sx={inputSx}
+                  />
+                )}
+                sx={{ '& .MuiSvgIcon-root': { color: '#666' } }}
+              />
+              <Typography sx={{ fontSize: 11, color: '#555', mt: 0.5 }}>
+                {form.document
+                  ? 'Used to find the most relevant sections in your document'
+                  : 'Questions will be generated based on this category'}
+              </Typography>
             </Box>
 
             <Box sx={{ flex: 1 }}>
@@ -119,6 +129,50 @@ export default function CreateTournamentForm({
                 ))}
               </Box>
             </Box>
+          </Box>
+
+          {/* Document upload */}
+          <Box sx={{ mb: 2 }}>
+            <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
+              Source Document <span style={{ color: '#555' }}>(optional · PDF or TXT · max 10MB)</span>
+            </Typography>
+            <Box
+              component="label"
+              htmlFor="trivia-doc-upload"
+              sx={{
+                display: 'flex', alignItems: 'center', gap: 2,
+                p: 1.5, borderRadius: 1, cursor: 'pointer',
+                bgcolor: DARK3, border: `1px solid ${form.document ? 'rgba(201,168,76,0.5)' : 'rgba(201,168,76,0.2)'}`,
+                '&:hover': { borderColor: GOLD },
+                transition: 'border-color 0.2s'
+              }}
+            >
+              <Box sx={{
+                px: 2, py: 0.8, borderRadius: 1, fontSize: 12, fontWeight: 600,
+                bgcolor: 'rgba(201,168,76,0.15)', color: GOLD, flexShrink: 0
+              }}>
+                Choose file
+              </Box>
+              <Typography sx={{ fontSize: 13, color: form.document ? GOLD : '#555', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {form.document ? form.document.name : 'No file selected'}
+              </Typography>
+              {form.document && (
+                <Box
+                  component="span"
+                  onClick={(e) => { e.preventDefault(); onFileChange(null) }}
+                  sx={{ ml: 'auto', color: '#555', fontSize: 18, lineHeight: 1, flexShrink: 0, '&:hover': { color: '#E84040' }, cursor: 'pointer' }}
+                >
+                  ✕
+                </Box>
+              )}
+            </Box>
+            <input
+              id="trivia-doc-upload"
+              type="file"
+              accept=".pdf,.txt"
+              style={{ display: 'none' }}
+              onChange={(e) => onFileChange(e.target.files?.[0] || null)}
+            />
           </Box>
 
           <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
@@ -238,7 +292,11 @@ export default function CreateTournamentForm({
         }}
       >
         {loading
-          ? isTrivia ? 'Generating questions with AI...' : 'Creating...'
+          ? isTrivia
+            ? form.document
+              ? 'Processing document & generating questions...'
+              : 'Generating questions with AI...'
+            : 'Creating...'
           : 'Create Tournament'}
       </Button>
     </>

@@ -6,6 +6,11 @@ import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { AuthRequest } from "../middleware/auth.middleware";
 import { generateTriviaQuestionsWithAI } from "../services/ai-trivia-question.service";
+import {
+  prepareDocumentChunks,
+  saveDocumentChunks,
+  getContextFromChunks,
+} from "../services/rag.service";
 import { getIO } from "../socket";
 import {
   clearTriviaTimers,
@@ -154,11 +159,22 @@ export const createTriviaTournament = async (
       ? difficulty
       : "medium";
 
+    // RAG: if a document was uploaded, prepare chunks and extract context
+    const uploadedFile = (req as any).file as Express.Multer.File | undefined;
+    let preparedChunks: Awaited<ReturnType<typeof prepareDocumentChunks>> | null = null;
+    let ragContext: string[] | undefined;
+
+    if (uploadedFile) {
+      preparedChunks = await prepareDocumentChunks(uploadedFile.buffer, uploadedFile.mimetype);
+      ragContext = await getContextFromChunks(safeCategory, preparedChunks);
+    }
+
     const questions = await generateTriviaQuestionsWithAI({
       topic: safeTopic,
       category: safeCategory,
       difficulty: safeDifficulty,
-      questionCount: safeQuestionCount
+      questionCount: safeQuestionCount,
+      context: ragContext,
     });
 
     const safeEntryFee = Number(entryFee) || 0;
@@ -212,17 +228,28 @@ export const createTriviaTournament = async (
       timePerQuestion: safeTimePerQuestion,
       status: "waiting",
       currentQuestionIndex: -1,
+      hasDocument: !!uploadedFile,
       questions,
       answers: [],
       leaderboard: []
     });
+
+    // Phase 2: save document chunks to DB now that we have a tournamentId
+    if (preparedChunks && uploadedFile) {
+      await saveDocumentChunks(
+        preparedChunks,
+        uploadedFile.originalname,
+        tournament._id.toString()
+      );
+    }
 
     getIO().emit("tournament:created", { tournament });
 
     return res.status(201).json({
       message: "Trivia tournament created successfully",
       tournament,
-      triviaGame
+      triviaGame,
+      hasDocument: !!uploadedFile,
     });
   } catch (error) {
     console.error("Create trivia tournament error:", error);

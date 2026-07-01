@@ -10,6 +10,7 @@ import { TournamentService } from "../services/tournament.service";
 import { WalletService } from "../services/wallet.service";
 import { ApiResponseHandler } from "../utils/api-response";
 import { getAdvancingCount } from "../utils/tournament.utils";
+import { deleteDocumentChunks } from "../services/rag.service";
 import { createBlackjackGame, generateUniqueInviteCode } from "./game.service";
 
 const isTournamentCreator = (createdBy: Types.ObjectId | string, userId: string): boolean =>
@@ -235,6 +236,7 @@ export const deleteTournament = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: "Forbidden" });
 
     await Tournament.findByIdAndDelete(id);
+    await deleteDocumentChunks(id);
     return res.status(200).json({ message: "Tournament deleted" });
   } catch (error) {
     console.error("Delete error:", error);

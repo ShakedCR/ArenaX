@@ -182,9 +182,20 @@ export default function WaitingRoom() {
             {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee}
           </Typography>
           {isTrivia && triviaGame && (
-            <Typography sx={{ color: '#555', fontSize: 12, mt: 0.5 }}>
-              {triviaGame.category} · {triviaGame.questionCount} questions · {triviaGame.timePerQuestion}s each · {triviaGame.difficulty}
-            </Typography>
+            <>
+              <Typography sx={{ color: '#555', fontSize: 12, mt: 0.5 }}>
+                {triviaGame.category} · {triviaGame.questionCount} questions · {triviaGame.timePerQuestion}s each · {triviaGame.difficulty}
+              </Typography>
+              {triviaGame.hasDocument && (
+                <Typography sx={{
+                  display: 'inline-flex', alignItems: 'center', gap: 0.5,
+                  color: GOLD, fontSize: 11, mt: 0.5,
+                  bgcolor: 'rgba(201,168,76,0.1)', px: 1, py: 0.25, borderRadius: 1
+                }}>
+                  📄 Document-based quiz
+                </Typography>
+              )}
+            </>
           )}
         </Box>
 

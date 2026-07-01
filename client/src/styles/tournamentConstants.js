@@ -16,6 +16,7 @@ export const INITIAL_TOURNAMENT_FORM = {
   privatePassword: '',
   // Trivia-specific fields
   category: 'General',
+  document: null,
   difficulty: 'medium',
   questionCount: 10,
   timePerQuestion: 20,

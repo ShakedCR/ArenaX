@@ -12,6 +12,7 @@ type GenerateTriviaQuestionsParams = {
   category?: string;
   difficulty: TriviaDifficulty;
   questionCount: number;
+  context?: string[];
 };
 
 const OLLAMA_URL = process.env.OLLAMA_HOST || "http://localhost:11434";
@@ -31,8 +32,24 @@ const buildPrompt = ({
   topic,
   category,
   difficulty,
-  questionCount
+  questionCount,
+  context,
 }: GenerateTriviaQuestionsParams): string => {
+  const contextSection = context && context.length > 0
+    ? `
+The following is relevant content from an uploaded document. Base your questions ONLY on this material:
+
+---
+${context.join("\n\n---\n\n")}
+---
+
+Important: questions must be directly answerable from the content above.`
+    : "";
+
+  const languageInstruction = context && context.length > 0
+    ? "Important: Generate ALL questions, answers, and explanations in the same language as the document content above."
+    : "";
+
   return `
 You are generating trivia questions for a competitive multiplayer quiz game.
 
@@ -41,6 +58,8 @@ Generate exactly ${questionCount} trivia questions.
 Topic: ${topic}
 Category: ${category || "General"}
 Difficulty: ${difficulty}
+${contextSection}
+${languageInstruction}
 
 Return JSON only.
 Do not include markdown.
