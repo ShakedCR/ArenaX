@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
-import { Html5Qrcode, Html5QrcodeScanner } from 'html5-qrcode'
 
 const GOLD = '#C9A84C'
 const DARK = '#0A0A0F'
@@ -14,9 +13,8 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const gameIcons = {
   Blackjack: '♠',
+  Trivia: '❓',
 }
-
-const isDev = import.meta.env.DEV
 
 const normalizeId = (value) => {
   if (!value) return null
@@ -37,11 +35,6 @@ export default function TournamentJoin() {
   const [joining, setJoining] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [scannerOpen, setScannerOpen] = useState(false)
-  const [scannerError, setScannerError] = useState('')
-  const [manualScanValue, setManualScanValue] = useState('')
-
-  const scannerTargetId = useMemo(() => 'tournament-join-qr-scanner', [])
 
   const extractInviteCode = (scannedValue) => {
     const value = String(scannedValue || '').trim()
@@ -123,78 +116,6 @@ export default function TournamentJoin() {
     }
   }, [inviteCode, navigate, password, tournament, user])
 
-  const handleScannedInviteResult = useCallback((scannedValue) => {
-    const code = extractInviteCode(scannedValue)
-
-    if (!code) {
-      setScannerError('Paste a full invite link or a raw invite code.')
-      return null
-    }
-
-    setError('')
-    setScannerError('')
-    setScannerOpen(false)
-    joinByInviteCode(code)
-    return code
-  }, [joinByInviteCode])
-
-  useEffect(() => {
-    if (!scannerOpen) return undefined
-
-    let scanner = null
-    let cleared = false
-
-    const startScanner = async () => {
-      try {
-        if (typeof Html5Qrcode?.getCameras === 'function') {
-          const cameras = await Html5Qrcode.getCameras()
-          if (cleared) return
-          if (!cameras?.length) {
-            setScannerError('No camera found on this device. Use the DEV test input below instead.')
-            setScannerOpen(false)
-            return
-          }
-        }
-
-        scanner = new Html5QrcodeScanner(
-          scannerTargetId,
-          {
-            fps: 10,
-            qrbox: { width: 240, height: 240 },
-            supportedScanTypes: [2],
-            rememberLastUsedCamera: true
-          },
-          false
-        )
-
-        scanner.render(
-          (decodedText) => {
-            handleScannedInviteResult(decodedText)
-          },
-          () => {}
-        )
-      } catch (err) {
-        const message = String(err?.message || err || '')
-        if (/permission|denied/i.test(message)) {
-          setScannerError('Camera permission denied. Allow camera access or use the DEV test input below.')
-        } else if (/camera|device|not found|no cameras?/i.test(message)) {
-          setScannerError('No camera found on this device. Use the DEV test input below instead.')
-        } else {
-          setScannerError('Unable to start the camera scanner in this browser. Use the DEV test input below instead.')
-        }
-        setScannerOpen(false)
-      }
-    }
-
-    startScanner()
-
-    return () => {
-      if (cleared || !scanner) return
-      cleared = true
-      scanner.clear().catch(() => {})
-    }
-  }, [scannerOpen, handleScannedInviteResult, scannerTargetId])
-
   useEffect(() => {
     if (authLoading) return
 
@@ -212,6 +133,15 @@ export default function TournamentJoin() {
   const handleJoin = async () => {
     if (!tournament) return
 
+    // Already a participant — go straight to waiting room
+    const alreadyJoined = tournament.participants?.some(
+      p => normalizeId(p?._id || p) === userId
+    )
+    if (alreadyJoined) {
+      navigate(`/tournament/${tournament._id}/waiting`)
+      return
+    }
+
     try {
       if (tournament?.isPrivate) {
         await joinByInviteCode(inviteCode)
@@ -223,20 +153,14 @@ export default function TournamentJoin() {
       await api.post(`/tournaments/${tournament._id}/join`)
       navigate(`/tournament/${tournament._id}/waiting`)
     } catch (err) {
+      if (/already joined/i.test(err?.response?.data?.message || '')) {
+        navigate(`/tournament/${tournament._id}/waiting`)
+        return
+      }
       setError(mapJoinErrorMessage(err))
     } finally {
       setJoining(false)
     }
-  }
-
-  const handleOpenScanner = () => {
-    setError('')
-    setScannerError('')
-    setScannerOpen(prev => !prev)
-  }
-
-  const handleDevTestQrJoinFlow = () => {
-    handleScannedInviteResult(manualScanValue)
   }
 
   if (authLoading || loading) return (
@@ -256,8 +180,10 @@ export default function TournamentJoin() {
   const creatorId = normalizeId(tournament?.createdBy)
   const isCreator = Boolean(userId && creatorId && userId === creatorId)
   const requirePassword = Boolean(tournament?.isPrivate && !isCreator)
-  const canJoin = tournament?.status === 'open' || (isCreator && tournament?.status === 'draft')
-  const shouldShowNotOpen = !canJoin
+  const isFull = (tournament?.participants?.length || 0) >= (tournament?.maxParticipants || 0)
+  const alreadyJoined = tournament?.participants?.some(p => normalizeId(p?._id || p) === userId)
+  const canJoin = (tournament?.status === 'open' || (isCreator && tournament?.status === 'draft')) && !isFull
+  const shouldShowNotOpen = !canJoin && !alreadyJoined
 
   return (
     <Box sx={{ bgcolor: DARK, minHeight: '100vh', color: 'white' }}>
@@ -278,7 +204,7 @@ export default function TournamentJoin() {
             {tournament?.title}
           </Typography>
           <Typography sx={{ color: '#666', fontSize: 13, mb: 3 }}>
-            {tournament?.gameTitle} · Entry: ⬡ {tournament?.entryFee} · {tournament?.participants?.length}/{tournament?.maxParticipants} players
+            {tournament?.gameTitle} · {tournament?.participants?.length}/{tournament?.maxParticipants} players
           </Typography>
 
           <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
@@ -340,83 +266,22 @@ export default function TournamentJoin() {
             </Typography>
           )}
 
-          <Button
-            fullWidth
-            onClick={handleOpenScanner}
-            sx={{
-              bgcolor: 'transparent',
-              color: GOLD,
-              border: '1px solid rgba(201,168,76,0.3)',
-              py: 1.4,
-              mb: 2,
-              fontWeight: 700,
-              fontSize: 14,
-              '&:hover': { bgcolor: 'rgba(201,168,76,0.08)' }
-            }}
-          >
-            {scannerOpen ? 'Close Scanner' : 'Scan QR Code'}
-          </Button>
 
-          {isDev && (
-            <Box sx={{ mb: 2, border: '1px dashed rgba(201,168,76,0.35)', borderRadius: 2, p: 2, textAlign: 'left', bgcolor: 'rgba(201,168,76,0.04)' }}>
-              <Typography sx={{ color: GOLD, fontSize: 12, fontWeight: 700, mb: 1 }}>
-                DEV ONLY - Test QR Join Flow without camera
+          {alreadyJoined ? (
+            <Button
+              fullWidth
+              onClick={() => navigate(`/tournament/${tournament._id}/waiting`)}
+              sx={{ bgcolor: GOLD, color: DARK, py: 1.5, mb: 2, fontWeight: 700, fontSize: 15, '&:hover': { bgcolor: '#E8C97A' } }}
+            >
+              Enter Waiting Room →
+            </Button>
+          ) : isFull ? (
+            <Box sx={{ bgcolor: '#3a3a3a', borderRadius: 1, p: 2, mb: 2 }}>
+              <Typography sx={{ color: '#888', fontSize: 14 }}>
+                This tournament is full ({tournament?.participants?.length}/{tournament?.maxParticipants} players)
               </Typography>
-              <Typography sx={{ color: '#aaa', fontSize: 12, mb: 1 }}>
-                Paste a full invite link or a raw invite code. This uses the same QR result handler as the real scanner.
-              </Typography>
-              <TextField
-                fullWidth
-                size="small"
-                value={manualScanValue}
-                onChange={(e) => setManualScanValue(e.target.value)}
-                placeholder="Paste invite link or invite code"
-                sx={{
-                  mb: 1.5,
-                  '& .MuiOutlinedInput-root': {
-                    color: 'white',
-                    '& fieldset': { borderColor: 'rgba(201,168,76,0.2)' },
-                    '&:hover fieldset': { borderColor: GOLD },
-                    '&.Mui-focused fieldset': { borderColor: GOLD },
-                  },
-                  '& input': { bgcolor: DARK3, borderRadius: 1 }
-                }}
-              />
-              <Button
-                fullWidth
-                onClick={handleDevTestQrJoinFlow}
-                disabled={!manualScanValue.trim()}
-                sx={{
-                  bgcolor: GOLD,
-                  color: DARK,
-                  py: 1.1,
-                  fontWeight: 700,
-                  fontSize: 13,
-                  '&:hover': { bgcolor: '#E8C97A' },
-                  '&.Mui-disabled': { bgcolor: '#5a4a20', color: '#888' }
-                }}
-              >
-                Test QR Join Flow
-              </Button>
             </Box>
-          )}
-
-          {scannerError && (
-            <Typography sx={{ color: '#f44336', fontSize: 13, mb: 2 }}>
-              {scannerError}
-            </Typography>
-          )}
-
-          {scannerOpen && (
-            <Box sx={{ mb: 2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 1.5, bgcolor: DARK3 }}>
-              <Typography sx={{ color: '#aaa', fontSize: 12, mb: 1, textAlign: 'left' }}>
-                Point your camera at a tournament QR code. The scanner accepts a full invite link or a raw invite code.
-              </Typography>
-              <Box id={scannerTargetId} sx={{ width: '100%' }} />
-            </Box>
-          )}
-
-          {shouldShowNotOpen ? (
+          ) : shouldShowNotOpen ? (
             <Box sx={{ bgcolor: '#3a3a3a', borderRadius: 1, p: 2, mb: 2 }}>
               <Typography sx={{ color: '#888', fontSize: 14 }}>
                 This tournament is not open for registration.

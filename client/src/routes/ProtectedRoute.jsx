@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import { Box, CircularProgress } from '@mui/material'
 
 import { useAuth } from '../contexts/useAuth'
@@ -6,6 +6,7 @@ import { GOLD, DARK } from '../styles/themeConstants'
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
+  const location = useLocation()
 
   if (loading) {
     return (
@@ -22,7 +23,8 @@ export default function ProtectedRoute({ children }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />
+    const redirect = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?redirect=${redirect}`} replace />
   }
 
   return children
