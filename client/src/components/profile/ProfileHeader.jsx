@@ -9,10 +9,12 @@ export default function ProfileHeader({
   newUsername,
   usernameError,
   usernameLoading,
+  avatarLoading,
   onEditUsername,
   onUsernameChange,
   onSaveUsername,
-  onCancelEdit
+  onCancelEdit,
+  onAvatarChange,
 }) {
   return (
     <Box sx={{
@@ -26,30 +28,52 @@ export default function ProfileHeader({
       alignItems: 'center',
       gap: 2
     }}>
-      <Box sx={{
-        width: 120,
-        height: 120,
-        borderRadius: '50%',
-        bgcolor: 'rgba(201,168,76,0.15)',
-        border: '3px solid rgba(201,168,76,0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        overflow: 'hidden',
-        flexShrink: 0
-      }}>
-        {user?.avatarUrl ? (
-          <img
-            src={user.avatarUrl}
-            width={120}
-            height={120}
-            style={{ objectFit: 'cover' }}
-          />
-        ) : (
-          <Typography sx={{ fontFamily: BEBAS, fontSize: 36, color: GOLD }}>
-            {initials}
-          </Typography>
-        )}
+      <Box
+        component="label"
+        htmlFor="avatar-upload"
+        sx={{
+          position: 'relative', width: 120, height: 120,
+          borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+          '&:hover .avatar-overlay': { opacity: 1 },
+        }}
+      >
+        {/* Avatar circle */}
+        <Box sx={{
+          width: 120, height: 120, borderRadius: '50%',
+          bgcolor: 'rgba(201,168,76,0.15)',
+          border: '3px solid rgba(201,168,76,0.4)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          overflow: 'hidden',
+        }}>
+          {avatarLoading ? (
+            <Typography sx={{ color: GOLD, fontSize: 11 }}>...</Typography>
+          ) : user?.avatarUrl ? (
+            <img src={user.avatarUrl} width={120} height={120} style={{ objectFit: 'cover' }} />
+          ) : (
+            <Typography sx={{ fontFamily: BEBAS, fontSize: 36, color: GOLD }}>
+              {initials}
+            </Typography>
+          )}
+        </Box>
+
+        {/* Camera overlay on hover */}
+        <Box className="avatar-overlay" sx={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          bgcolor: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 0.5,
+          opacity: 0, transition: 'opacity 0.2s',
+        }}>
+          <Typography sx={{ fontSize: 20 }}>📷</Typography>
+          <Typography sx={{ fontSize: 10, color: 'white', fontWeight: 600 }}>Change</Typography>
+        </Box>
+
+        <input
+          id="avatar-upload"
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => onAvatarChange(e.target.files?.[0] || null)}
+        />
       </Box>
 
       <Box sx={{ textAlign: 'center' }}>

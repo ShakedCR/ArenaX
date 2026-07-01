@@ -22,11 +22,13 @@ export default function Profile() {
     newUsername,
     usernameError,
     usernameLoading,
+    avatarLoading,
     setNewUsername,
     getGameStats,
     handleEditUsername,
     handleCancelEdit,
-    handleSaveUsername
+    handleSaveUsername,
+    handleAvatarChange,
   } = useProfile()
 
   return (
@@ -45,10 +47,12 @@ export default function Profile() {
           newUsername={newUsername}
           usernameError={usernameError}
           usernameLoading={usernameLoading}
+          avatarLoading={avatarLoading}
           onEditUsername={handleEditUsername}
           onUsernameChange={setNewUsername}
           onSaveUsername={handleSaveUsername}
           onCancelEdit={handleCancelEdit}
+          onAvatarChange={handleAvatarChange}
         />
 
         <Typography sx={{ fontFamily: BEBAS, fontSize: 22, letterSpacing: 2, mb: 2 }}>
