@@ -1,138 +1,133 @@
-import React from 'react';
-import QRCode from 'qrcode.react';
-import { Box, Button, Dialog, DialogTitle, DialogContent, DialogActions, Typography, Paper, CircularProgress } from '@mui/material';
-import FileCopyIcon from '@mui/icons-material/FileCopy';
+import { QRCodeCanvas } from 'qrcode.react'
+import { Box, Button, CircularProgress, Modal, Typography } from '@mui/material'
 
-const QRCodeDisplay = ({ open, onClose, inviteLink, qrImage, tournamentName, isLoading = false, hasPassword = false }) => {
+const GOLD = '#C9A84C'
+const DARK2 = '#12121A'
+const DARK3 = '#1C1C28'
+
+export default function QRCodeDisplay({ open, onClose, inviteLink, qrImage, tournamentName, isLoading = false, hasPassword = false }) {
   const handleCopy = () => {
     if (inviteLink) {
-      navigator.clipboard.writeText(inviteLink);
-      alert('Invite link copied to clipboard!');
+      navigator.clipboard.writeText(inviteLink)
     }
-  };
+  }
 
   const handleDownload = () => {
     if (qrImage) {
-      // If server provided QR image, download it directly
-      const link = document.createElement('a');
-      link.href = qrImage;
-      link.download = `${tournamentName}-qr-code.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } else if (typeof QRCode !== 'undefined') {
-      // Fallback to canvas QR code
-      const qrElement = document.getElementById('tournament-qr-code');
-      if (qrElement) {
-        const link = document.createElement('a');
-        link.href = qrElement.toDataURL('image/png');
-        link.download = `${tournamentName}-qr-code.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      const link = document.createElement('a')
+      link.href = qrImage
+      link.download = `${tournamentName}-qr-code.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      const canvas = document.getElementById('tournament-qr-code')
+      if (canvas) {
+        const link = document.createElement('a')
+        link.href = canvas.toDataURL('image/png')
+        link.download = `${tournamentName}-qr-code.png`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
       }
     }
-  };
+  }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>
-        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-          Share Tournament: {tournamentName}
-        </Typography>
-      </DialogTitle>
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{
+        position: 'absolute', top: '50%', left: '50%',
+        transform: 'translate(-50%, -50%)',
+        bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)',
+        borderRadius: 2, p: 4, width: '100%', maxWidth: 420,
+        outline: 'none',
+      }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Typography sx={{ fontWeight: 700, fontSize: 16, color: 'white' }}>
+            Share Tournament
+          </Typography>
+          <Typography
+            onClick={onClose}
+            sx={{ color: '#666', cursor: 'pointer', fontSize: 20, lineHeight: 1, '&:hover': { color: 'white' } }}
+          >
+            ✕
+          </Typography>
+        </Box>
 
-      <DialogContent sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, py: 3 }}>
         {isLoading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <CircularProgress />
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress sx={{ color: GOLD }} />
           </Box>
         ) : (
           <>
-            {/* QR Code - prefer server image, fallback to canvas */}
-            <Paper sx={{ p: 2, bgcolor: '#fff', boxShadow: 1 }}>
-              {qrImage ? (
-                <img
-                  src={qrImage}
-                  alt="Tournament QR Code"
-                  style={{ width: 256, height: 256 }}
-                />
-              ) : (
-                <QRCode
-                  id="tournament-qr-code"
-                  value={inviteLink || ''}
-                  size={256}
-                  level="H"
-                  includeMargin={true}
-                  renderAs="canvas"
-                />
-              )}
-            </Paper>
+            <Typography sx={{ color: '#888', fontSize: 13, mb: 2, textAlign: 'center' }}>
+              {tournamentName}
+            </Typography>
 
-            {/* Invite Link */}
-            <Box sx={{ width: '100%' }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 1 }}>
-                Invite Link:
-              </Typography>
-              <Paper
-                sx={{
-                  p: 1.5,
-                  bgcolor: '#f5f5f5',
-                  border: '1px solid #ddd',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  word: 'break-all'
-                }}
-              >
-                <Typography
-                  variant="caption"
-                  sx={{
-                    flex: 1,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    mr: 1
-                  }}
-                >
-                  {inviteLink}
-                </Typography>
-                <Button
-                  size="small"
-                  startIcon={<FileCopyIcon />}
-                  onClick={handleCopy}
-                  sx={{ whiteSpace: 'nowrap' }}
-                >
-                  Copy
-                </Button>
-              </Paper>
+            {/* QR Code */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+              <Box sx={{ p: 2, bgcolor: 'white', borderRadius: 2 }}>
+                {qrImage ? (
+                  <img src={qrImage} alt="QR Code" style={{ width: 200, height: 200, display: 'block' }} />
+                ) : (
+                  <QRCodeCanvas
+                    id="tournament-qr-code"
+                    value={inviteLink || ''}
+                    size={200}
+                    level="H"
+                  />
+                )}
+              </Box>
             </Box>
 
-            {/* Instructions */}
-            <Box sx={{ width: '100%', bgcolor: '#f0f7ff', p: 2, borderRadius: 1 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                📱 Share this QR code or link with other players. They can scan it with their phone camera or paste the link in a browser to join!
+            {/* Invite link */}
+            <Box sx={{ bgcolor: DARK3, border: '1px solid rgba(255,255,255,0.06)', borderRadius: 1, px: 2, py: 1.5, mb: 2 }}>
+              <Typography sx={{ color: '#555', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, mb: 0.5 }}>
+                Invite link
               </Typography>
-              {hasPassword && (
-                <Typography variant="caption" sx={{ color: '#f44336', display: 'block', mt: 1 }}>
-                  This tournament requires a password to join. Share the password separately with invitees.
-                </Typography>
-              )}
+              <Typography sx={{ color: '#aaa', fontSize: 12, wordBreak: 'break-all', lineHeight: 1.5 }}>
+                {inviteLink}
+              </Typography>
+            </Box>
+
+            {hasPassword && (
+              <Typography sx={{ color: '#f44336', fontSize: 12, mb: 2, textAlign: 'center' }}>
+                🔒 This tournament requires a password to join
+              </Typography>
+            )}
+
+            <Typography sx={{ color: '#555', fontSize: 12, textAlign: 'center', mb: 3 }}>
+              Scan the QR code or share the link to invite players
+            </Typography>
+
+            {/* Actions */}
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button
+                fullWidth
+                onClick={handleCopy}
+                sx={{
+                  bgcolor: 'rgba(201,168,76,0.1)', color: GOLD,
+                  border: '1px solid rgba(201,168,76,0.3)', py: 1,
+                  '&:hover': { bgcolor: 'rgba(201,168,76,0.2)' }
+                }}
+              >
+                Copy Link
+              </Button>
+              <Button
+                fullWidth
+                onClick={handleDownload}
+                sx={{
+                  bgcolor: GOLD, color: '#0A0A0F', py: 1, fontWeight: 700,
+                  '&:hover': { bgcolor: '#E8C97A' }
+                }}
+              >
+                Download QR
+              </Button>
             </Box>
           </>
         )}
-      </DialogContent>
-
-      <DialogActions>
-        <Button onClick={handleDownload} disabled={isLoading}>
-          Download QR
-        </Button>
-        <Button onClick={onClose} variant="contained">
-          Done
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
-
-export default QRCodeDisplay;
+      </Box>
+    </Modal>
+  )
+}
