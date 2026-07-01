@@ -1,5 +1,5 @@
 import { Box, Button, CircularProgress, TextField, Typography } from '@mui/material'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
@@ -35,28 +35,6 @@ export default function TournamentJoin() {
   const [joining, setJoining] = useState(false)
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-
-  const extractInviteCode = (scannedValue) => {
-    const value = String(scannedValue || '').trim()
-    if (!value) return null
-
-    const directMatch = value.match(/(?:^|\/)tournaments\/join\/([A-Za-z0-9]+)/i)
-      || value.match(/(?:^|\/)invite\/([A-Za-z0-9]+)/i)
-      || value.match(/(?:^|\/)tournaments\/invite\/([A-Za-z0-9]+)/i)
-    if (directMatch?.[1]) return directMatch[1]
-
-    try {
-      const parsed = new URL(value)
-      const parts = parsed.pathname.split('/').filter(Boolean)
-      const joinIndex = parts.findIndex(part => part === 'join')
-      if (joinIndex >= 0 && parts[joinIndex + 1]) return parts[joinIndex + 1]
-      const inviteIndex = parts.findIndex(part => part === 'invite')
-      if (inviteIndex >= 0 && parts[inviteIndex + 1]) return parts[inviteIndex + 1]
-      return parts[parts.length - 1] || null
-    } catch {
-      return /^[A-Za-z0-9]+$/.test(value) ? value : null
-    }
-  }
 
   const mapJoinErrorMessage = (err) => {
     const status = err?.response?.status
