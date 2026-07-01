@@ -91,6 +91,7 @@ export default function Profile() {
             <TournamentHistoryRow
               key={tournament._id}
               tournament={tournament}
+              userId={user?.id || user?._id}
             />
           ))
         )}
