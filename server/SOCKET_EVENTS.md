@@ -352,43 +352,6 @@ blackjack:game-over
 
 ---
 
-## Chess-Specific Contract
-
-### Client -> Server
-- `chess:move`
-- `chess:resign`
-- `chess:offer-draw`
-- `chess:accept-draw`
-
-### Server -> Clients
-- `chess:game-start`
-- `chess:game-state`
-- `chess:move`
-- `chess:game-over`
-- `chess:timeout`
-- `chess:draw-offered`
-
-Status: 🟡 Planned
-
----
-
-## Checkers-Specific Contract
-
-### Client -> Server
-- `checkers:move`
-- `checkers:resign`
-
-### Server -> Clients
-- `checkers:game-start`
-- `checkers:game-state`
-- `checkers:move`
-- `checkers:game-over`
-- `checkers:timeout`
-
-Status: 🟡 Planned
-
----
-
 ## Blackjack Integration Example (React)
 
 ```js
@@ -439,6 +402,5 @@ socket.emit('blackjack:player-action',
 ## Source of Truth
 
 - Generic implemented events: `server/src/socket/index.ts`
-- Blackjack implementation: `server/src/socket/blackjack.socket.ts`
-- Chess contract: `server/src/socket/chess.socket.ts`
-- Checkers contract: `server/src/socket/checkers.socket.ts`
+- Blackjack implementation: `server/src/blackjack/socket.ts`
+- Trivia implementation: `server/src/socket/trivia.socket.ts`
