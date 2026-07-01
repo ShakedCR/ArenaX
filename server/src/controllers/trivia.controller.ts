@@ -98,6 +98,9 @@ export const createTriviaTournament = async (
       return res.status(401).json({ message: "Unauthorized" });
     }
 
+    // FormData sends booleans as strings — normalize before any checks
+    const safeIsPrivate = isPrivate === true || isPrivate === "true";
+
     if (!title || !questionCount || !timePerQuestion || !maxParticipants) {
       return res.status(400).json({
         message:
@@ -147,7 +150,7 @@ export const createTriviaTournament = async (
     }
 
     if (
-      isPrivate === true &&
+      safeIsPrivate &&
       (!privatePassword || String(privatePassword).trim() === "")
     ) {
       return res.status(400).json({
@@ -200,8 +203,8 @@ export const createTriviaTournament = async (
       createdBy: req.userId,
       participants: [new Types.ObjectId(req.userId)],
       status: "open",
-      isPrivate: isPrivate ?? false,
-      privatePassword: isPrivate ? String(privatePassword) : "",
+      isPrivate: safeIsPrivate,
+      privatePassword: safeIsPrivate ? String(privatePassword) : "",
       inviteCode: generateInviteCode()
     });
 
