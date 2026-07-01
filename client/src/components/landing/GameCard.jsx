@@ -5,7 +5,7 @@ const DARK2 = '#12121A'
 const DARK3 = '#1C1C28'
 const BEBAS = "'Bebas Neue', sans-serif"
 
-export default function GameCard({ game }) {
+export default function GameCard({ game, onPlay }) {
   return (
     <Box sx={{
       bgcolor: DARK2,
@@ -33,7 +33,7 @@ export default function GameCard({ game }) {
         <Typography sx={{ color: '#555', fontSize: 12 }}>
           {game.tag}
         </Typography>
-        <Typography sx={{ color: GOLD, fontSize: 13, cursor: 'pointer' }}>
+        <Typography onClick={onPlay} sx={{ color: GOLD, fontSize: 13, cursor: 'pointer', '&:hover': { color: '#E8C97A' } }}>
           Play Now →
         </Typography>
       </Box>

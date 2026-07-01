@@ -1,4 +1,4 @@
-import { BaseGameState } from "../games/IGameEngine";
+import { BaseGameState } from "../types/IGameEngine";
 
 // ── Card & Hand types ──────────────────────────────────────────────────────────
 

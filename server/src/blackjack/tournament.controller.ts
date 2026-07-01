@@ -7,7 +7,6 @@ import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { getIO } from "../socket";
 import { TournamentService } from "../services/tournament.service";
-import { WalletService } from "../services/wallet.service";
 import { ApiResponseHandler } from "../utils/api-response";
 import { getAdvancingCount } from "../utils/tournament.utils";
 import { deleteDocumentChunks } from "../services/rag.service";

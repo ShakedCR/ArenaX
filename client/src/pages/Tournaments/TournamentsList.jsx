@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/useAuth'
 import useTournaments from '../../hooks/useTournaments'
 
 import AuthNavbar from '../../components/layout/AuthNavbar'
-import TournamentListRow from '../../components/tournaments/TournamentListRow'
+import TournamentListRow from '../../components/tournament/TournamentListRow'
 
 import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 import { TOURNAMENT_TABS } from '../../styles/tournamentConstants'

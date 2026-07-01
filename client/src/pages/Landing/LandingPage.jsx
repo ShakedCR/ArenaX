@@ -12,7 +12,7 @@ const BEBAS = "'Bebas Neue', sans-serif"
 
 const games = [
   { icon: '♠', name: 'BLACKJACK', desc: 'Test your nerve. Beat the dealer. Outscore the table.', tag: '2-6 Players' },
-  { icon: '🧠', name: 'TRIVIA', desc: 'AI-powered questions. Prove your knowledge. Outsmart the competition.', tag: 'Coming Soon', comingSoon: true },
+  { icon: '🧠', name: 'TRIVIA', desc: 'AI-powered questions. Prove your knowledge. Outsmart the competition.', tag: '2-10 Players' },
 ]
 
 const steps = [
@@ -49,7 +49,7 @@ export default function LandingPage() {
         <Box sx={{ width: 60, height: 2, bgcolor: GOLD, mx: 'auto', mt: 4, mb: 4 }} />
 
         <Typography sx={{ color: '#888', fontSize: 15, mb: 6 }}>
-          Enter the arena. Compete in Blackjack tournaments for tokens, glory, and Elo supremacy. Trivia coming soon.
+          Enter the arena. Compete in Blackjack and Trivia tournaments for tokens, glory, and Elo supremacy.
         </Typography>
 
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', mb: 10 }}>
@@ -72,7 +72,7 @@ export default function LandingPage() {
         <Box sx={{ display: 'flex', gap: 3, px: { xs: 2, md: 8 }, justifyContent: 'center' }}>
           {games.map((g, i) => (
             <Box key={i} sx={{ flex: 1, maxWidth: 380 }}>
-              <GameCard game={g} />
+              <GameCard game={g} onPlay={() => navigate('/register')} />
             </Box>
           ))}
         </Box>

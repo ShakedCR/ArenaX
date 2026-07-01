@@ -1,4 +1,4 @@
-import { IGameEngine, GamePlayer, GameResult } from "../games/IGameEngine";
+import { IGameEngine, GamePlayer, GameResult } from "../types/IGameEngine";
 import { buildDeck, handValue, isBust, isBlackjack, isSoftSeventeen } from "./utils";
 import { canSplit, canDouble, syncActiveHand, createHand } from "./hand-helpers";
 

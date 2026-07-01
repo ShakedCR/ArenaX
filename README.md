@@ -115,6 +115,59 @@ Client runs on `http://localhost:5173`, server on `http://localhost:3000`.
 
 ---
 
+## Deploy to Production
+
+### 1. Configure environment variables
+
+**Server** — copy and fill `server/.env.example` → `server/.env`:
+```env
+PORT=3000
+MONGO_URI=mongodb://127.0.0.1:27017/arenax
+CLIENT_URL=http://<your-server-ip-or-domain>
+JWT_SECRET=<strong-random-secret>
+SESSION_SECRET=<strong-random-secret>
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3
+OLLAMA_EMBED_MODEL=nomic-embed-text
+```
+
+**Client** — copy and fill `client/.env.example` → `client/.env`:
+```env
+VITE_API_URL=http://<your-server-ip-or-domain>:3000
+```
+
+### 2. Pull Ollama models (once per machine)
+```bash
+ollama pull llama3
+ollama pull nomic-embed-text
+```
+
+### 3. Build the client
+```bash
+cd client
+npm install
+npm run build
+# Output: client/dist/
+```
+
+### 4. Build and start the server
+```bash
+cd server
+npm install
+npm run build
+npm start
+```
+
+### 5. Serve the client
+Serve the `client/dist/` folder with any static file server. Example using `serve`:
+```bash
+npx serve client/dist -l 5173
+```
+
+Or configure nginx to point to `client/dist/`.
+
+---
+
 ## Architecture
 
 ```
