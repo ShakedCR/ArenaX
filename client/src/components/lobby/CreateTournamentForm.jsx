@@ -1,4 +1,4 @@
-import { Box, Button, MenuItem, Select, TextField, Typography } from '@mui/material'
+import { Autocomplete, Box, Button, MenuItem, Select, TextField, Typography } from '@mui/material'
 
 import { GOLD, DARK, DARK3 } from '../../styles/themeConstants'
 import {
@@ -83,16 +83,25 @@ export default function CreateTournamentForm({
               <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
                 Category
               </Typography>
-              <Select
-                fullWidth
+              <Autocomplete
+                freeSolo
+                options={TRIVIA_CATEGORIES}
                 value={form.category}
-                onChange={onChange('category')}
-                sx={selectSx}
-              >
-                {TRIVIA_CATEGORIES.map(c => (
-                  <MenuItem key={c} value={c}>{c}</MenuItem>
-                ))}
-              </Select>
+                onInputChange={(_, value) => onChange('category')({ target: { value } })}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Select or type a category..."
+                    sx={inputSx}
+                  />
+                )}
+                sx={{ '& .MuiSvgIcon-root': { color: '#666' } }}
+              />
+              <Typography sx={{ fontSize: 11, color: '#555', mt: 0.5 }}>
+                {form.document
+                  ? 'Used to find the most relevant sections in your document'
+                  : 'Questions will be generated based on this category'}
+              </Typography>
             </Box>
 
             <Box sx={{ flex: 1 }}>
