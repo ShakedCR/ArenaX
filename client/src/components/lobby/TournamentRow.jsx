@@ -6,7 +6,6 @@ import QRCodeDisplay from '../common/QRCodeDisplay'
 
 const GOLD = '#C9A84C'
 const DARK2 = '#12121A'
-const DARK3 = '#1C1C28'
 
 const gameIcons = {
   Blackjack: '♠',
@@ -110,7 +109,7 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, minWidth: 280, justifyContent: 'flex-end' }}>
           {inviteLink && (
             <Button onClick={handleShowQR} disabled={loadingQR} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
               {loadingQR ? <CircularProgress size={20} /> : 'QR'}
