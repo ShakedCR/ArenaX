@@ -14,6 +14,7 @@ export default function useProfile() {
   const [newUsername, setNewUsername] = useState('')
   const [usernameError, setUsernameError] = useState('')
   const [usernameLoading, setUsernameLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
 
   useEffect(() => {
     if (!userId) {
@@ -80,6 +81,40 @@ export default function useProfile() {
     }
   }, [completedTournaments, userId])
 
+  const compressImage = (file) => new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const SIZE = 200
+      const canvas = document.createElement('canvas')
+      canvas.width = SIZE
+      canvas.height = SIZE
+      const ctx = canvas.getContext('2d')
+      // crop to square from center
+      const side = Math.min(img.width, img.height)
+      const sx = (img.width - side) / 2
+      const sy = (img.height - side) / 2
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/jpeg', 0.8))
+    }
+    img.src = url
+  })
+
+  const handleAvatarChange = async (file) => {
+    if (!file || !userId) return
+    setAvatarLoading(true)
+    try {
+      const base64 = await compressImage(file)
+      const res = await api.put(`/users/${userId}`, { avatarUrl: base64 })
+      setUser(res.data.user)
+    } catch (err) {
+      console.error('[useProfile] avatar upload error:', err)
+    } finally {
+      setAvatarLoading(false)
+    }
+  }
+
   const handleEditUsername = () => {
     setNewUsername(user?.username || '')
     setUsernameError('')
@@ -128,10 +163,12 @@ export default function useProfile() {
     newUsername,
     usernameError,
     usernameLoading,
+    avatarLoading,
     setNewUsername,
     getGameStats,
     handleEditUsername,
     handleCancelEdit,
-    handleSaveUsername
+    handleSaveUsername,
+    handleAvatarChange,
   }
 }
