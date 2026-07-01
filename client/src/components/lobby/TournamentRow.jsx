@@ -127,9 +127,24 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
               Open
             </Button>
           )}
-          <Button onClick={() => onJoin(tournament)} disabled={status !== 'open' && !(isCreator && isPrivate)} sx={{ color: (status === 'open' || (isCreator && isPrivate)) ? GOLD : '#555', px: 3, fontSize: 13 }}>
-            {status === 'ongoing' ? 'View' : 'Join'}
-          </Button>
+          {(() => {
+            const isFull = (participants?.length || 0) >= maxParticipants
+            const alreadyJoined = tournament.participants?.some(
+              p => normalizeId(p?._id || p) === normalizeId(user?.id || user?._id)
+            )
+            const canJoin = status === 'open' && !isFull && !alreadyJoined
+            const label = status === 'ongoing' ? 'View' : isFull ? 'Full' : 'Join'
+            const active = canJoin || alreadyJoined || status === 'ongoing' || (isCreator && isPrivate)
+            return (
+              <Button
+                onClick={() => onJoin(tournament)}
+                disabled={!active}
+                sx={{ color: active ? GOLD : '#555', px: 3, fontSize: 13 }}
+              >
+                {label}
+              </Button>
+            )
+          })()}
         </Box>
       </Box>
 

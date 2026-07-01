@@ -5,3 +5,5 @@ dist/
 build/
 .claude/
 CLAUDE.md
+*.log
+*_logs.txt
