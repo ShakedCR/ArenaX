@@ -58,7 +58,7 @@ export default function Lobby() {
           await api.post(`/tournaments/invite/${tournament.inviteCode}/join`)
           navigate(`/tournament/${tournament._id}/waiting`)
         } catch (err) {
-          console.log('Join failed:', err.response?.data)
+          console.error('[Lobby] Join failed:', err.response?.data)
           if (err.response?.data?.message === 'User already joined this tournament') {
             navigate(`/tournament/${tournament._id}/waiting`)
           }

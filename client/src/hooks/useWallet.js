@@ -50,7 +50,7 @@ export default function useWallet() {
       setBonusClaimed(!walletRes.data.wallet.canClaimDailyBonus)
       await fetchTransactions()
     } catch (err) {
-      console.log(err)
+      console.error('[useWallet] fetch error:', err)
     } finally {
       setLoading(false)
     }
@@ -95,7 +95,7 @@ export default function useWallet() {
         setBonusClaimed(true)
       }
 
-      console.log(err)
+      console.error('[useWallet] daily bonus error:', err)
     } finally {
       setClaimingBonus(false)
     }
