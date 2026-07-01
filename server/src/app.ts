@@ -13,7 +13,6 @@ import gamesRoutes from "./routes/games.routes";
 import userRoutes from "./routes/user.routes";
 import walletRoutes from "./routes/wallet.routes";
 import transactionRoutes from "./routes/transaction.routes";
-import aiRoutes from "./routes/ai.routes";
 import triviaRoutes from "./routes/trivia.routes";
 import { errorHandler, notFoundHandler } from "./middleware/error.middleware";
 
@@ -64,7 +63,6 @@ app.use("/api/games", gamesRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/wallet", walletRoutes);
 app.use("/api/transactions", transactionRoutes);
-app.use("/api/ai", aiRoutes);
 app.use("/api/trivia", triviaRoutes);
 
 
