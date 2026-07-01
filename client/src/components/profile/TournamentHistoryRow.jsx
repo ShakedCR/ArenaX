@@ -20,8 +20,16 @@ const getPlacementLabel = (placement) => {
   return `${placement}th`
 }
 
-export default function TournamentHistoryRow({ tournament }) {
+const getOutcome = (tournament, userId) => {
+  const winner = tournament.result?.winner
+  if (!winner || !userId) return null
+  const winnerId = winner._id ?? winner
+  return winnerId.toString() === userId.toString() ? 'winner' : 'loser'
+}
+
+export default function TournamentHistoryRow({ tournament, userId }) {
   const earnings = tournament.result?.earnings || 0
+  const outcome = getOutcome(tournament, userId)
 
   return (
     <Box
@@ -62,36 +70,39 @@ export default function TournamentHistoryRow({ tournament }) {
           {new Date(tournament.createdAt).toLocaleDateString()}
         </Typography>
 
-        <Typography
-          sx={{
-            color: '#888',
-            fontSize: 13,
-            minWidth: 40,
-            textAlign: 'center'
-          }}
-        >
-          {getPlacementLabel(tournament.result?.placement)}
-        </Typography>
+        {tournament.result?.placement && (
+          <Typography sx={{ color: '#888', fontSize: 13, minWidth: 40, textAlign: 'center' }}>
+            {getPlacementLabel(tournament.result.placement)}
+          </Typography>
+        )}
 
-        <Typography
-          sx={{
-            color:
-              earnings > 0
-                ? '#4caf50'
-                : earnings < 0
-                  ? '#f44336'
-                  : '#888',
-            fontSize: 13,
-            minWidth: 50,
-            textAlign: 'right'
-          }}
-        >
-          {earnings > 0
-            ? `+${earnings}`
-            : earnings < 0
-              ? `${earnings}`
-              : '-'}
-        </Typography>
+        {earnings !== 0 && (
+          <Typography sx={{
+            color: earnings > 0 ? '#4caf50' : '#f44336',
+            fontSize: 13, minWidth: 50, textAlign: 'right'
+          }}>
+            {earnings > 0 ? `+${earnings}` : `${earnings}`}
+          </Typography>
+        )}
+
+        {outcome && (
+          <Box sx={{
+            px: 1.5, py: 0.4, borderRadius: 1,
+            bgcolor: outcome === 'winner'
+              ? 'rgba(201,168,76,0.15)'
+              : 'rgba(244,67,54,0.12)',
+            border: `1px solid ${outcome === 'winner' ? 'rgba(201,168,76,0.4)' : 'rgba(244,67,54,0.3)'}`,
+          }}>
+            <Typography sx={{
+              fontSize: 11, fontWeight: 700,
+              color: outcome === 'winner' ? '#C9A84C' : '#f44336',
+              letterSpacing: 0.5
+            }}>
+              {outcome === 'winner' ? 'Winner' : 'Loser'}
+            </Typography>
+          </Box>
+        )}
+
       </Box>
     </Box>
   )
