@@ -42,7 +42,7 @@ export const TRIVIA_DIFFICULTIES = ['easy', 'medium', 'hard']
 export const TRIVIA_MAX_PLAYERS = 10
 
 export const BLACKJACK_MAX_PLAYERS = 6
-export const DEFAULT_MAX_PLAYERS = 12
+export const DEFAULT_MAX_PLAYERS = 10
 
 export const TOURNAMENT_TABS = [
   'All',

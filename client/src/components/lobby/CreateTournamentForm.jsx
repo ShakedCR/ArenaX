@@ -223,14 +223,14 @@ export default function CreateTournamentForm({
 
         <Box sx={{ flex: 1 }}>
           <Typography sx={{ color: '#aaa', fontSize: 13, mb: 0.5 }}>
-            Max Players {isBlackjack ? '(2–6)' : isTrivia ? '(1–50)' : '(2–12)'}
+            Max Players {isBlackjack ? '(2–6)' : isTrivia ? '(2–10)' : '(2–10)'}
           </Typography>
           <TextField
             fullWidth
             type="number"
             value={form.maxParticipants}
             onChange={onChange('maxParticipants')}
-            slotProps={{ input: { min: isTrivia ? 1 : 2, max: maxAllowed } }}
+            slotProps={{ input: { min: 2, max: maxAllowed } }}
             sx={inputSx}
           />
         </Box>
