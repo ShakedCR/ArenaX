@@ -45,11 +45,12 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
 
     setForm(prev => {
       if (field === 'gameTitle') {
-        const nextMax =
-          value === 'Blackjack'
-            ? Math.min(Number(prev.maxParticipants), BLACKJACK_MAX_PLAYERS)
-            : Number(prev.maxParticipants)
-
+        const limit = value === 'Blackjack'
+          ? BLACKJACK_MAX_PLAYERS
+          : value === 'Trivia'
+            ? TRIVIA_MAX_PLAYERS
+            : DEFAULT_MAX_PLAYERS
+        const nextMax = Math.min(Number(prev.maxParticipants), limit)
         return { ...prev, gameTitle: value, maxParticipants: nextMax }
       }
 
@@ -84,8 +85,8 @@ export default function CreateTournamentModal({ open, onClose, onCreated }) {
     }
 
     if (isTrivia) {
-      if (maxParticipants < 1 || maxParticipants > TRIVIA_MAX_PLAYERS) {
-        return 'Trivia tournaments support 1 to 50 players'
+      if (maxParticipants < 2 || maxParticipants > TRIVIA_MAX_PLAYERS) {
+        return 'Trivia tournaments support 2 to 10 players'
       }
       const qc = Number(form.questionCount)
       if (!Number.isInteger(qc) || qc < 1 || qc > 50) {

@@ -3,10 +3,10 @@ import { Box, Typography } from '@mui/material'
 const GOLD = '#C9A84C'
 
 const stats = [
-  { num: '1', label: 'GAME', sub: 'Blackjack' },
+  { num: '2', label: 'GAMES', sub: 'Blackjack, Trivia' },
   { num: '1K', label: 'TOKENS', sub: 'Starting balance' },
   { num: 'ELO', label: 'SYSTEM', sub: 'Competitive ranking' },
-  { num: 'AI', label: 'INSIGHTS', sub: 'Post-game analysis' },
+  { num: 'AI', label: 'INSIGHTS', sub: 'Question generation + RAG' },
 ]
 
 export default function StatBar() {
