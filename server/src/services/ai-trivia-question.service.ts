@@ -37,13 +37,14 @@ const buildPrompt = ({
 }: GenerateTriviaQuestionsParams): string => {
   const contextSection = context && context.length > 0
     ? `
-The following is relevant content from an uploaded document. Base your questions ONLY on this material:
+The following is relevant content from an uploaded document. Base your questions ONLY on this material, and focus specifically on content related to "${category || topic}":
 
 ---
 ${context.join("\n\n---\n\n")}
 ---
 
-Important: questions must be directly answerable from the content above.`
+Important: questions must be directly answerable from the content above.
+Important: even if the document covers broader topics, only generate questions about "${category || topic}" specifically.`
     : "";
 
   const languageInstruction = context && context.length > 0
