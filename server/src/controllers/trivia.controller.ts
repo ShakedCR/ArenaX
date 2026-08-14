@@ -1,5 +1,6 @@
 import { Response } from "express";
 import { Types } from "mongoose";
+import bcrypt from "bcrypt";
 import Tournament from "../models/tournament.model";
 import TriviaGame from "../models/trivia-game.model";
 import User from "../models/user.model";
@@ -204,7 +205,7 @@ export const createTriviaTournament = async (
       participants: [new Types.ObjectId(req.userId)],
       status: "open",
       isPrivate: safeIsPrivate,
-      privatePassword: safeIsPrivate ? String(privatePassword) : "",
+      privatePassword: safeIsPrivate ? await bcrypt.hash(String(privatePassword), 10) : "",
       inviteCode: generateInviteCode()
     });
 
