@@ -3,36 +3,32 @@ import User from "../models/user.model";
 import { blackjackEngine } from "../blackjack/engine";
 import { calculateMultiplayerElo, EloResult } from "../utils/elo.utils";
 
-type SupportedGame = "blackjack";
-
-const engineMap: Record<SupportedGame, { getLeaderboard: (gameId: string) => { playerId: string; rank: number }[] }> = {
-  blackjack: blackjackEngine,
-};
+export type SupportedGame = "blackjack" | "trivia";
 
 /**
- * Reads current Elo ratings for all players in a completed game,
- * runs the multiplayer Elo calculation, persists the new ratings,
- * and emits `elo:updated` to each player's personal socket room.
+ * Core Elo update: accepts a pre-built ranked leaderboard, reads current
+ * per-game ratings from MongoDB, applies calculateMultiplayerElo, persists
+ * the new ratings, and emits elo:updated to each player's personal room.
  *
- * @returns Array of per-player Elo results (useful for broadcasting to the UI)
+ * Used directly by Trivia (leaderboard already available at completion).
+ * Used internally by updateEloAfterGame for Blackjack.
  */
-export const updateEloAfterGame = async (
+export const updateEloFromLeaderboard = async (
   io: Server,
-  gameId: string,
+  rankedPlayers: { playerId: string; rank: number }[],
   game: SupportedGame
 ): Promise<EloResult[]> => {
-  const leaderboard = engineMap[game].getLeaderboard(gameId);
-  if (leaderboard.length < 2) return [];
+  if (rankedPlayers.length < 2) return [];
 
-  const playerIds = leaderboard.map(e => e.playerId);
+  const playerIds = rankedPlayers.map(e => e.playerId);
 
   const users = await User.find({ _id: { $in: playerIds } })
     .select("_id elo")
-    .lean() as { _id: any; elo?: { blackjack?: number } }[];
+    .lean() as { _id: any; elo?: { blackjack?: number; trivia?: number } }[];
 
   const userById = new Map(users.map(u => [u._id.toString(), u]));
 
-  const inputs = leaderboard.map(entry => ({
+  const inputs = rankedPlayers.map(entry => ({
     playerId: entry.playerId,
     rating: userById.get(entry.playerId)?.elo?.[game] ?? 1200,
     rank: entry.rank,
@@ -40,7 +36,6 @@ export const updateEloAfterGame = async (
 
   const results = calculateMultiplayerElo(inputs);
 
-  // Bulk write new ratings
   if (results.length > 0) {
     const bulkOps = results.map(r => ({
       updateOne: {
@@ -51,7 +46,6 @@ export const updateEloAfterGame = async (
     await User.bulkWrite(bulkOps);
   }
 
-  // Notify each player via their personal socket room
   for (const result of results) {
     io.to(`user:${result.playerId}`).emit("elo:updated", {
       game,
@@ -62,4 +56,26 @@ export const updateEloAfterGame = async (
   }
 
   return results;
+};
+
+/**
+ * Blackjack-specific wrapper: reads the leaderboard from the in-memory
+ * blackjack engine for the given gameId, then delegates to updateEloFromLeaderboard.
+ *
+ * Called fire-and-forget from finalizeMatch() in blackjack/tournament.service.ts.
+ * Behavior is identical to before this refactor.
+ */
+export const updateEloAfterGame = async (
+  io: Server,
+  gameId: string,
+  game: "blackjack"
+): Promise<EloResult[]> => {
+  const leaderboard = blackjackEngine.getLeaderboard(gameId);
+  if (leaderboard.length < 2) return [];
+
+  return updateEloFromLeaderboard(
+    io,
+    leaderboard.map(e => ({ playerId: e.playerId, rank: e.rank })),
+    game
+  );
 };

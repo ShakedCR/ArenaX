@@ -19,7 +19,8 @@ function AuthNavbar({ username = 'Player', tokens = 0 }) {
   const { logout, user } = useAuth()
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const displayElo = user?.elo?.blackjack ?? 1200
+  const eloBlackjack = user?.elo?.blackjack ?? 1200
+  const eloTrivia = user?.elo?.trivia ?? 1200
 
   const handleLogout = () => {
     logout()
@@ -73,7 +74,11 @@ function AuthNavbar({ username = 'Player', tokens = 0 }) {
         </Typography>
 
         <Typography sx={{ color: '#aaa', fontSize: 13 }}>
-          Elo: <span style={{ color: GOLD }}>{displayElo}</span>
+          ♠ <span style={{ color: GOLD }}>{eloBlackjack}</span>
+        </Typography>
+
+        <Typography sx={{ color: '#aaa', fontSize: 13 }}>
+          ❓ <span style={{ color: GOLD }}>{eloTrivia}</span>
         </Typography>
 
         <Button
@@ -131,7 +136,10 @@ function AuthNavbar({ username = 'Player', tokens = 0 }) {
                 <span style={{ color: GOLD }}>⬡</span> {tokens}
               </Typography>
               <Typography sx={{ color: '#aaa', fontSize: 12 }}>
-                Elo: <span style={{ color: GOLD }}>{displayElo}</span>
+                ♠ <span style={{ color: GOLD }}>{eloBlackjack}</span>
+              </Typography>
+              <Typography sx={{ color: '#aaa', fontSize: 12 }}>
+                ❓ <span style={{ color: GOLD }}>{eloTrivia}</span>
               </Typography>
             </Box>
           </Box>
