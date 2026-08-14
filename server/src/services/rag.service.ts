@@ -3,6 +3,7 @@ import DocumentChunk from "../models/document-chunk.model";
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
+const OLLAMA_EMBED_TIMEOUT_MS = Number(process.env.OLLAMA_EMBED_TIMEOUT_MS) || 30_000;
 
 const CHUNK_SIZE = 300;
 const CHUNK_OVERLAP = 50;
@@ -54,11 +55,21 @@ const chunkText = (text: string): string[] => {
 
 const getEmbedding = async (text: string): Promise<number[]> => {
   const safeText = text.slice(0, MAX_EMBED_CHARS);
-  const response = await fetch(`${OLLAMA_HOST}/api/embeddings`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: OLLAMA_EMBED_MODEL, prompt: safeText }),
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(`${OLLAMA_HOST}/api/embeddings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: OLLAMA_EMBED_MODEL, prompt: safeText }),
+      signal: AbortSignal.timeout(OLLAMA_EMBED_TIMEOUT_MS),
+    });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      throw new Error(`Ollama embeddings timed out after ${OLLAMA_EMBED_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     const body = await response.text().catch(() => "(unreadable)");
