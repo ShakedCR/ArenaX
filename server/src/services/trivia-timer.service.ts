@@ -4,6 +4,7 @@ import Tournament from "../models/tournament.model";
 import User from "../models/user.model";
 import Transaction from "../models/transaction.model";
 import { buildRankedLeaderboard } from "../utils/trivia.utils";
+import { updateEloFromLeaderboard } from "./elo.service";
 
 type TriviaTimerState = {
   questionTimer?: NodeJS.Timeout;
@@ -220,6 +221,15 @@ export const moveToNextTriviaQuestion = async (
         });
       }
     }
+
+    // Update Trivia Elo — fire-and-forget, same pattern as Blackjack finalizeMatch()
+    updateEloFromLeaderboard(
+      io,
+      leaderboard.map(e => ({ playerId: (e.user as any).toString(), rank: e.rank })),
+      "trivia"
+    ).catch(err => {
+      console.error("[elo] Failed to update Trivia Elo:", err);
+    });
 
     io.emit("tournament:status-changed", { tournamentId: tournament._id.toString(), status: "completed" });
 

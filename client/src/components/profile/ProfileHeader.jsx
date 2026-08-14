@@ -160,7 +160,7 @@ export default function ProfileHeader({
           </Typography>
         )}
 
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
           <Box sx={{
             bgcolor: 'rgba(201,168,76,0.1)',
             border: '1px solid rgba(201,168,76,0.3)',
@@ -169,7 +169,19 @@ export default function ProfileHeader({
             py: 0.5
           }}>
             <Typography sx={{ color: GOLD, fontSize: 13 }}>
-              Elo {user?.elo?.blackjack || 1200}
+              ♠ {user?.elo?.blackjack ?? 1200}
+            </Typography>
+          </Box>
+
+          <Box sx={{
+            bgcolor: 'rgba(201,168,76,0.1)',
+            border: '1px solid rgba(201,168,76,0.3)',
+            borderRadius: 1,
+            px: 2,
+            py: 0.5
+          }}>
+            <Typography sx={{ color: GOLD, fontSize: 13 }}>
+              ❓ {user?.elo?.trivia ?? 1200}
             </Typography>
           </Box>
 

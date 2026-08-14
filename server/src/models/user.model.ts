@@ -4,6 +4,7 @@ export type UserRole = "player" | "admin" | "moderator";
 
 export interface IUserElo {
   blackjack: number;
+  trivia: number;
 }
 
 export interface IUser extends Document {
@@ -79,6 +80,7 @@ const userSchema = new Schema<IUser>(
     },
     elo: {
       blackjack: { type: Number, default: 1200, min: 100 },
+      trivia: { type: Number, default: 1200, min: 100 },
     }
   },
   {
