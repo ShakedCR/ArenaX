@@ -122,6 +122,23 @@ async function endTournament(
   const isTie = winners.length > 1;
   const splitPrize = winners.length > 0 ? Math.floor(prizePool / winners.length) : 0;
 
+  // Atomically claim prize distribution — prevents duplicate payouts if this
+  // function is reached more than once for the same tournament.
+  // Also sets status and result in the same operation (no separate update needed).
+  const resultUpdate: Record<string, any> = {
+    status: "completed",
+    prizeDistributed: true,
+    "result.isTie": isTie,
+  };
+  if (!isTie && winners[0]) resultUpdate["result.winner"] = winners[0].playerId;
+
+  const claimed = await Tournament.findOneAndUpdate(
+    { _id: match.tournament, status: "ongoing", prizeDistributed: { $ne: true } },
+    { $set: resultUpdate },
+    { new: true }
+  );
+  if (!claimed) return;
+
   for (const winner of winners) {
     if (splitPrize <= 0) continue;
 
@@ -146,12 +163,6 @@ async function endTournament(
       });
     }
   }
-
-  await Tournament.findByIdAndUpdate(match.tournament, {
-    status: "completed",
-    "result.isTie": isTie,
-    ...(!isTie && winners[0] ? { "result.winner": winners[0].playerId } : {}),
-  });
 
   io.to(`game:${gameId}`).to(`tournament:${tournamentRoomId}`).emit("blackjack:tournament-over", {
     tournamentId: tournamentRoomId,
