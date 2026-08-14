@@ -287,7 +287,7 @@ export const getTriviaGameByTournament = async (
 
     const triviaGame = await TriviaGame.findOne({
       tournament: tournamentId
-    }).populate("tournament");
+    }).select("-answers").populate("tournament");
 
     if (!triviaGame) {
       return res.status(404).json({ message: "Trivia game not found" });
