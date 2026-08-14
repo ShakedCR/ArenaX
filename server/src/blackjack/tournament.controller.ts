@@ -474,16 +474,5 @@ export const regenerateTournamentInviteCode = async (req: AuthRequest, res: Resp
   }
 };
 
-export const getQRCode = async (req: AuthRequest, res: Response) => {
-  try {
-    const id = req.params.id as string;
-    const qrImage = await TournamentService.getQRImage(id);
-    return res.status(200).json(ApiResponseHandler.success({ qrImage }));
-  } catch (error: any) {
-    console.error("Get QR code error:", error);
-    const statusCode = error.status || 500;
-    return res.status(statusCode).json(ApiResponseHandler.error(error.message));
-  }
-};
 
 

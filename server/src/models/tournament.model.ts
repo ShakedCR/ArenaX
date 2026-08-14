@@ -40,7 +40,6 @@ export interface ITournament extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
-  qrUrl?: string;
   deletedAt?: Date;
   result?: {
     winner?: Types.ObjectId | null;
@@ -93,7 +92,6 @@ const tournamentSchema = new Schema<ITournament>(
       winner: { type: Schema.Types.ObjectId, ref: "User", default: null },
       isTie: { type: Boolean, default: false }
     },
-    qrUrl: { type: String, default: "" },
     deletedAt: { type: Date, default: null }
   },
   { timestamps: true }
