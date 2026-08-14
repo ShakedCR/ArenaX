@@ -18,7 +18,7 @@ router.get("/topics/suggestions", getTriviaTopicSuggestions);
 
 router.post("/tournaments", authMiddleware, uploadDocument, createTriviaTournament);
 
-router.get("/tournament/:tournamentId", getTriviaGameByTournament);
+router.get("/tournament/:tournamentId", authMiddleware, getTriviaGameByTournament);
 router.get("/tournament/:tournamentId/standings", getTriviaStandings);
 
 router.post("/:triviaGameId/start", authMiddleware, startTriviaGame);
