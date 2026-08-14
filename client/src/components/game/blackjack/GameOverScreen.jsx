@@ -43,7 +43,7 @@ export default function GameOverScreen({ finalLeaderboard, playerNames, currentU
       <Typography sx={{ fontFamily: BEBAS, fontSize: 20, letterSpacing: 4, color: '#666' }}>
         GAME OVER
       </Typography>
-      <Typography sx={{ fontFamily: BEBAS, fontSize: 72, color: isWinner ? GOLD : '#fff', lineHeight: 1 }}>
+      <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 52, md: 72 }, color: isWinner ? GOLD : '#fff', lineHeight: 1 }}>
         {isWinner ? 'VICTORY' : 'DEFEATED'}
       </Typography>
 
@@ -55,7 +55,7 @@ export default function GameOverScreen({ finalLeaderboard, playerNames, currentU
 
       <EloBadge eloResult={eloResult} />
 
-      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 3, minWidth: 320, mt: 1 }}>
+      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.15)', borderRadius: 2, p: 3, width: { xs: '90%', md: 'auto' }, minWidth: { xs: 0, md: 320 }, mt: 1 }}>
         <Typography sx={{ fontFamily: BEBAS, fontSize: 18, letterSpacing: 3, color: GOLD, mb: 2 }}>
           FINAL STANDINGS
         </Typography>

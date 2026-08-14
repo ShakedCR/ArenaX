@@ -56,7 +56,7 @@ export default function ProfileHeader({
           )}
         </Box>
 
-        {/* Camera overlay on hover */}
+        {/* Camera overlay on hover (desktop) */}
         <Box className="avatar-overlay" sx={{
           position: 'absolute', inset: 0, borderRadius: '50%',
           bgcolor: 'rgba(0,0,0,0.55)', display: 'flex', flexDirection: 'column',
@@ -65,6 +65,17 @@ export default function ProfileHeader({
         }}>
           <Typography sx={{ fontSize: 20 }}>📷</Typography>
           <Typography sx={{ fontSize: 10, color: 'white', fontWeight: 600 }}>Change</Typography>
+        </Box>
+
+        {/* Always-visible camera badge on mobile */}
+        <Box sx={{
+          position: 'absolute', bottom: 2, right: 2,
+          width: 26, height: 26, borderRadius: '50%',
+          bgcolor: GOLD, display: { xs: 'flex', md: 'none' },
+          alignItems: 'center', justifyContent: 'center',
+          fontSize: 13, boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+        }}>
+          📷
         </Box>
 
         <input

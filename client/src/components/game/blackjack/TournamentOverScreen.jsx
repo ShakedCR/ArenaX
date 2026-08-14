@@ -78,7 +78,7 @@ export default function TournamentOverScreen({
 
       <EloBadge eloResult={eloResult} />
 
-      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)', borderRadius: 2, p: 3, minWidth: 300 }}>
+      <Box sx={{ bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)', borderRadius: 2, p: 3, width: { xs: '90%', md: 'auto' }, minWidth: { xs: 0, md: 300 } }}>
         {(finalLeaderboard || []).map((e, i) => (
           <Box key={e.playerId} sx={{
             display: 'flex', justifyContent: 'space-between',
@@ -92,7 +92,7 @@ export default function TournamentOverScreen({
         ))}
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: 'center' }}>
         {tournamentId && (
           <Button
             onClick={onNavigateTournament}

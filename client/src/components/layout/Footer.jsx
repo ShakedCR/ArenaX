@@ -5,7 +5,7 @@ const GOLD = '#C9A84C'
 export default function Footer() {
   return (
     <Box sx={{
-      py: 4, px: 6,
+      py: 4, px: { xs: 2, md: 6 },
       borderTop: `1px solid rgba(201,168,76,0.1)`,
       display: 'flex', justifyContent: 'space-between', alignItems: 'center'
     }}>

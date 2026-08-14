@@ -35,7 +35,8 @@ export default function TournamentHistoryRow({ tournament, userId }) {
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: { xs: 'column', md: 'row' },
+        alignItems: { xs: 'flex-start', md: 'center' },
         justifyContent: 'space-between',
         bgcolor: DARK2,
         border: '1px solid rgba(201,168,76,0.1)',
@@ -43,6 +44,7 @@ export default function TournamentHistoryRow({ tournament, userId }) {
         px: 3,
         py: 2,
         mb: 1.5,
+        gap: { xs: 1, md: 0 },
         transition: 'all 0.2s',
         '&:hover': {
           bgcolor: DARK3
@@ -65,7 +67,7 @@ export default function TournamentHistoryRow({ tournament, userId }) {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, md: 3 }, flexWrap: 'wrap' }}>
         <Typography sx={{ color: '#666', fontSize: 12 }}>
           {new Date(tournament.createdAt).toLocaleDateString()}
         </Typography>

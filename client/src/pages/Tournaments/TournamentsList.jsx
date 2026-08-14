@@ -32,7 +32,7 @@ export default function TournamentsList() {
         tokens={user?.walletBalance || 0}
       />
 
-      <Box sx={{ px: 6, py: 4 }}>
+      <Box sx={{ px: { xs: 2, md: 6 }, py: 4 }}>
         <Box sx={{ mb: 4 }}>
           <Typography sx={{ fontFamily: BEBAS, fontSize: 36, letterSpacing: 3 }}>
             TOURNAMENTS
