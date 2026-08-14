@@ -189,12 +189,21 @@ export const moveToNextTriviaQuestion = async (
       ? (winners[0].user?._id?.toString() ?? winners[0].user?.toString())
       : null;
 
-    // Save winner to tournament.result so profile win rate works
-    await Tournament.findByIdAndUpdate(tournament._id, {
+    // Atomically claim prize distribution — prevents duplicate payouts independently
+    // of the TriviaGame guard above. Also sets status and result in one operation.
+    const resultUpdate: Record<string, any> = {
       status: "completed",
+      prizeDistributed: true,
       "result.isTie": isTie,
-      ...(singleWinnerId ? { "result.winner": singleWinnerId } : {}),
-    });
+    };
+    if (singleWinnerId) resultUpdate["result.winner"] = singleWinnerId;
+
+    const claimed = await Tournament.findOneAndUpdate(
+      { _id: tournament._id, status: "ongoing", prizeDistributed: { $ne: true } },
+      { $set: resultUpdate },
+      { new: true }
+    );
+    if (!claimed) return;
 
     for (const winner of winners) {
       if (splitPrize <= 0) break;

@@ -45,6 +45,7 @@ export interface ITournament extends Document {
     winner?: Types.ObjectId | null;
     isTie?: boolean;
   };
+  prizeDistributed?: boolean;
 }
 
 const tournamentSchema = new Schema<ITournament>(
@@ -92,6 +93,7 @@ const tournamentSchema = new Schema<ITournament>(
       winner: { type: Schema.Types.ObjectId, ref: "User", default: null },
       isTie: { type: Boolean, default: false }
     },
+    prizeDistributed: { type: Boolean, default: false },
     deletedAt: { type: Date, default: null }
   },
   { timestamps: true }
