@@ -163,16 +163,17 @@ export const moveToNextTriviaQuestion = async (
     return;
   }
 
-  const isLastQuestion =
-    triviaGame.currentQuestionIndex >= triviaGame.questions.length - 1;
+  const expectedIndex = triviaGame.currentQuestionIndex;
+  const isLastQuestion = expectedIndex >= triviaGame.questions.length - 1;
 
   if (isLastQuestion) {
-    triviaGame.status = "completed";
-    triviaGame.completedAt = new Date();
+    const completed = await TriviaGame.findOneAndUpdate(
+      { _id: triviaGameId, currentQuestionIndex: expectedIndex, status: "in_progress" },
+      { $set: { status: "completed", completedAt: new Date() } },
+      { new: true }
+    );
 
-    tournament.status = "completed";
-
-    await triviaGame.save();
+    if (!completed) return;
 
     clearTriviaTimers(triviaGameId);
 
@@ -242,8 +243,13 @@ export const moveToNextTriviaQuestion = async (
     return;
   }
 
-  triviaGame.currentQuestionIndex += 1;
-  await triviaGame.save();
+  const advanced = await TriviaGame.findOneAndUpdate(
+    { _id: triviaGameId, currentQuestionIndex: expectedIndex, status: "in_progress" },
+    { $inc: { currentQuestionIndex: 1 } },
+    { new: true }
+  );
+
+  if (!advanced) return;
 
   await startTriviaQuestionTimer(io, triviaGameId);
 };
