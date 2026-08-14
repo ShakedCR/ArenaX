@@ -1,21 +1,21 @@
 # ArenaX
 
-ArenaX is a multiplayer tournament platform supporting Blackjack and Trivia games (Chess and Checkers planned).
+ArenaX is a multiplayer tournament platform supporting Blackjack and Trivia games.
 
 **Features:**
-- Tournament management (public & private with invite codes and QR)
+- Tournament management (public & private)
 - Real-time gameplay via Socket.io
 - Wallet and virtual tokens with entry fees and prize distribution
 - ELO ranking system
 - Google OAuth + JWT authentication
 - AI-generated trivia questions (Ollama)
-- RAG-powered trivia from custom documents (in development)
+- RAG-powered trivia from custom documents
 
 ---
 
 ## Team
 
-- Shaked Crissy — Frontend + AI
+- Shaked Crissy — Frontend + AI + Refactoring
 - Ofek Nagauker — Backend + Auth + Wallet
 - Mevoreich Berrebi — Game Engine + Socket.io
 
@@ -38,8 +38,6 @@ ArenaX is a multiplayer tournament platform supporting Blackjack and Trivia game
 
 ### Game Engines
 - engine-blackjack
-- chess.js (planned)
-- draughts (planned)
 
 ---
 
