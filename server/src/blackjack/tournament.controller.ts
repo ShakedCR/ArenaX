@@ -156,14 +156,26 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
     if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
 
     if (tournament.entryFee > 0) {
-      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -tournament.entryFee } });
+      const deducted = await User.findOneAndUpdate(
+        { _id: req.userId, walletBalance: { $gte: tournament.entryFee } },
+        { $inc: { walletBalance: -tournament.entryFee } },
+        { new: true }
+      ).select("walletBalance");
+
+      if (!deducted) {
+        await Tournament.findByIdAndUpdate(id, {
+          $pull: { participants: userObjectId },
+          $inc: { prizePool: -tournament.entryFee },
+        });
+        return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
+      }
+
       await Transaction.create({
         user: user._id, tournament: tournament._id,
         amount: tournament.entryFee, type: "entry_fee", status: "completed",
         description: `Entry fee for tournament: ${tournament.title}`
       });
-      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
-      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: deducted.walletBalance });
     }
 
     getIO().emit("tournament:participant-added", {
@@ -418,14 +430,26 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
     if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
 
     if (tournament.entryFee > 0) {
-      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -tournament.entryFee } });
+      const deducted = await User.findOneAndUpdate(
+        { _id: req.userId, walletBalance: { $gte: tournament.entryFee } },
+        { $inc: { walletBalance: -tournament.entryFee } },
+        { new: true }
+      ).select("walletBalance");
+
+      if (!deducted) {
+        await Tournament.findByIdAndUpdate(tournament._id, {
+          $pull: { participants: userObjectId },
+          $inc: { prizePool: -tournament.entryFee },
+        });
+        return res.status(400).json({ message: "Insufficient wallet balance to join this tournament" });
+      }
+
       await Transaction.create({
         user: user._id, tournament: tournament._id,
         amount: tournament.entryFee, type: "entry_fee", status: "completed",
         description: `Entry fee for tournament: ${tournament.title}`
       });
-      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
-      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: deducted.walletBalance });
     }
 
     getIO().emit("tournament:participant-added", {

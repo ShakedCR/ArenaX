@@ -160,25 +160,20 @@ export const withdrawFromWallet = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const user = await User.findById(req.userId);
+    const updated = await User.findOneAndUpdate(
+      { _id: req.userId, walletBalance: { $gte: amount } },
+      { $inc: { walletBalance: -amount } },
+      { new: true }
+    ).select("_id fullName username email walletBalance lastDailyBonus");
 
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found"
-      });
+    if (!updated) {
+      const exists = await User.exists({ _id: req.userId });
+      if (!exists) return res.status(404).json({ message: "User not found" });
+      return res.status(400).json({ message: "Insufficient wallet balance" });
     }
-
-    if (user.walletBalance < amount) {
-      return res.status(400).json({
-        message: "Insufficient wallet balance"
-      });
-    }
-
-    user.walletBalance -= amount;
-    await user.save();
 
     const transaction = await Transaction.create({
-      user: user._id,
+      user: updated._id,
       amount,
       type: "withdrawal",
       status: "completed",
@@ -187,7 +182,7 @@ export const withdrawFromWallet = async (req: AuthRequest, res: Response) => {
 
     return res.status(200).json({
       message: "Withdrawal completed successfully",
-      wallet: buildWalletResponse(user),
+      wallet: buildWalletResponse(updated),
       transaction
     });
   } catch (error) {
