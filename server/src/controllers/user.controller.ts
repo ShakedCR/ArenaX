@@ -4,6 +4,7 @@ import User from "../models/user.model";
 import Tournament from "../models/tournament.model";
 import Match from "../models/match.model";
 import { AuthRequest } from "../middleware/auth.middleware";
+import { uploadImageBuffer } from "../services/cloudinary.service";
 
 const isValidObjectId = (id: string): boolean => Types.ObjectId.isValid(id);
 
@@ -135,7 +136,7 @@ export const updateUserById = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const allowedUpdates = ["fullName", "username", "avatarUrl", "games"];
+    const allowedUpdates = ["fullName", "username", "games"];
 
     for (const key of allowedUpdates) {
       if (req.body[key] !== undefined) {
@@ -314,5 +315,44 @@ export const getUserStats = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({
       message: "Server error while fetching user stats"
     });
+  }
+};
+
+export const updateUserAvatar = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+
+    if (!req.userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ message: "Invalid user ID" });
+    }
+
+    if (!canManageUser(req.userId, id)) {
+      return res.status(403).json({ message: "Forbidden: you can only update your own profile" });
+    }
+
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    user.avatarUrl = await uploadImageBuffer(file.buffer);
+    await user.save();
+
+    return res.status(200).json({
+      message: "Avatar updated successfully",
+      user: buildSafeUser(user),
+    });
+  } catch (error) {
+    console.error("Update avatar error:", error);
+    return res.status(500).json({ message: "Server error while updating avatar" });
   }
 };

@@ -90,13 +90,12 @@ export default function useProfile() {
       canvas.width = SIZE
       canvas.height = SIZE
       const ctx = canvas.getContext('2d')
-      // crop to square from center
       const side = Math.min(img.width, img.height)
       const sx = (img.width - side) / 2
       const sy = (img.height - side) / 2
       ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
       URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.8))
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8)
     }
     img.src = url
   })
@@ -105,8 +104,10 @@ export default function useProfile() {
     if (!file || !userId) return
     setAvatarLoading(true)
     try {
-      const base64 = await compressImage(file)
-      const res = await api.put(`/users/${userId}`, { avatarUrl: base64 })
+      const blob = await compressImage(file)
+      const formData = new FormData()
+      formData.append('avatar', blob, 'avatar.jpg')
+      const res = await api.put(`/users/${userId}/avatar`, formData)
       setUser(res.data.user)
     } catch (err) {
       console.error('[useProfile] avatar upload error:', err)
