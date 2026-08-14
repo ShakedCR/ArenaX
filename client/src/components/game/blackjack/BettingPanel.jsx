@@ -59,7 +59,7 @@ export default function BettingPanel({
           </Typography>
         </Box>
       ) : myTokens > 0 ? (
-        <Box sx={{ width: 320, bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)', borderRadius: 2, p: 4 }}>
+        <Box sx={{ width: { xs: '100%', md: 320 }, maxWidth: { xs: 420, md: 'none' }, bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.2)', borderRadius: 2, p: 4 }}>
           <Typography sx={{ color: GOLD, fontFamily: BEBAS, fontSize: 48, textAlign: 'center', mb: 1 }}>
             ⬡ {effectiveBet}
           </Typography>
@@ -78,7 +78,7 @@ export default function BettingPanel({
             <Typography sx={{ color: '#555', fontSize: 12 }}>Max: {myTokens}</Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 3, justifyContent: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 1, mb: 3, justifyContent: 'center', flexWrap: 'wrap' }}>
             {QUICK_BETS.filter(v => v <= myTokens).map(v => (
               <Box
                 key={v}

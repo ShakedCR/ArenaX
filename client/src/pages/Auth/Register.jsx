@@ -52,7 +52,7 @@ export default function Register() {
     }}>
       <Typography
         onClick={() => navigate('/')}
-        sx={{ position: 'absolute', top: 32, left: 48, color: '#888', fontSize: 13, cursor: 'pointer',
+        sx={{ position: 'absolute', top: { xs: 16, md: 32 }, left: { xs: 16, md: 48 }, color: '#888', fontSize: 13, cursor: 'pointer',
           '&:hover': { color: 'white' } }}>
         ← Back to home
       </Typography>

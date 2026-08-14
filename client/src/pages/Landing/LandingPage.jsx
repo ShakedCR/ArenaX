@@ -36,13 +36,13 @@ export default function LandingPage() {
           SELECT YOUR BATTLEFIELD
         </Typography>
 
-        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 80, md: 130 }, letterSpacing: 6, lineHeight: 1 }}>
+        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 60, md: 130 }, letterSpacing: { xs: 4, md: 6 }, lineHeight: 1 }}>
           COMPETE
         </Typography>
-        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 80, md: 130 }, letterSpacing: 6, lineHeight: 1, color: GOLD }}>
+        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 60, md: 130 }, letterSpacing: { xs: 4, md: 6 }, lineHeight: 1, color: GOLD }}>
           CONQUER
         </Typography>
-        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 80, md: 130 }, letterSpacing: 6, lineHeight: 1 }}>
+        <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 60, md: 130 }, letterSpacing: { xs: 4, md: 6 }, lineHeight: 1 }}>
           CLAIM
         </Typography>
 
@@ -69,9 +69,9 @@ export default function LandingPage() {
           CHOOSE YOUR GAME
         </Typography>
 
-        <Box sx={{ display: 'flex', gap: 3, px: { xs: 2, md: 8 }, justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, px: { xs: 2, md: 8 }, justifyContent: 'center' }}>
           {games.map((g, i) => (
-            <Box key={i} sx={{ flex: 1, maxWidth: 380 }}>
+            <Box key={i} sx={{ flex: 1, maxWidth: 380, minWidth: { xs: '100%', md: 0 } }}>
               <GameCard game={g} onPlay={() => navigate('/register')} />
             </Box>
           ))}
@@ -87,9 +87,9 @@ export default function LandingPage() {
         </Typography>
         <Box sx={{ width: 60, height: 2, bgcolor: GOLD, mx: 'auto', mt: 3, mb: 8 }} />
 
-        <Box sx={{ display: 'flex', gap: 4, px: { xs: 2, md: 8 }, justifyContent: 'center' }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: { xs: 2, md: 4 }, px: { xs: 2, md: 8 }, justifyContent: 'center' }}>
           {steps.map((s, i) => (
-            <Box key={i} sx={{ flex: 1, maxWidth: 280 }}>
+            <Box key={i} sx={{ flex: 1, maxWidth: 280, minWidth: { xs: 'calc(50% - 8px)', md: 0 } }}>
               <StepCard step={s} />
             </Box>
           ))}

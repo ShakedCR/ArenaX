@@ -38,7 +38,7 @@ export default function Profile() {
         tokens={user?.walletBalance || 0}
       />
 
-      <Box sx={{ px: 6, py: 4, maxWidth: 1000, mx: 'auto' }}>
+      <Box sx={{ px: { xs: 2, md: 6 }, py: 4, maxWidth: 1000, mx: 'auto' }}>
         <ProfileHeader
           user={user}
           initials={initials}
@@ -59,7 +59,7 @@ export default function Profile() {
           GAME BREAKDOWN
         </Typography>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2, mb: 4 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 2, mb: 4 }}>
           {GAMES.map(game => (
             <GameStatsCard
               key={game}

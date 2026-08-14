@@ -47,9 +47,10 @@ function TriviaPlayersTable({ players, userId, tournamentStatus }) {
         )}
       </Box>
 
+      <Box sx={{ overflowX: 'auto' }}>
       <Box sx={{
         display: 'grid', gridTemplateColumns: '36px 1fr 80px 70px 70px 100px',
-        gap: 1, px: 2, pb: 1,
+        gap: 1, px: 2, pb: 1, minWidth: 420,
         borderBottom: '1px solid rgba(255,255,255,0.06)'
       }}>
         {['', 'Player', 'Score', '✓', '✗', 'Status'].map((h, i) => (
@@ -66,7 +67,7 @@ function TriviaPlayersTable({ players, userId, tournamentStatus }) {
           <Box key={player._id} sx={{
             display: 'grid', gridTemplateColumns: '36px 1fr 80px 70px 70px 100px',
             gap: 1, alignItems: 'center',
-            px: 2, py: 1.5,
+            px: 2, py: 1.5, minWidth: 420,
             borderBottom: '1px solid rgba(255,255,255,0.04)',
             bgcolor: isMe ? 'rgba(201,168,76,0.04)' : 'transparent',
             '&:last-child': { borderBottom: 'none' }
@@ -107,6 +108,7 @@ function TriviaPlayersTable({ players, userId, tournamentStatus }) {
           </Box>
         )
       })}
+      </Box>
     </Box>
   )
 }

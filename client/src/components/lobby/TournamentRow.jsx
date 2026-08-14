@@ -77,9 +77,9 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 1, px: 3, py: 2, mb: 1.5 }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', bgcolor: DARK2, border: '1px solid rgba(201,168,76,0.1)', borderRadius: 1, px: 3, py: 2, mb: 1.5, gap: { xs: 1.5, md: 0 } }}>
         {/* Left: icon + title + private lock */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 220 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: { xs: 0, md: 220 } }}>
           <Typography sx={{ fontSize: 18 }}>{gameIcons[gameTitle] ?? '🎮'}</Typography>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -109,7 +109,7 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
             </Typography>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, minWidth: 280, justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1, minWidth: { xs: 0, md: 280 }, justifyContent: { xs: 'flex-start', md: 'flex-end' }, flexWrap: 'wrap' }}>
           {inviteLink && (
             <Button onClick={handleShowQR} disabled={loadingQR} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
               {loadingQR ? <CircularProgress size={20} /> : 'QR'}

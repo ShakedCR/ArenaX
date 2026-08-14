@@ -175,7 +175,7 @@ export default function WaitingRoom() {
           <Typography sx={{ fontSize: 40, mb: 1 }}>
             {gameIcons[tournament?.gameTitle] || '🎮'}
           </Typography>
-          <Typography sx={{ fontFamily: BEBAS, fontSize: 40, letterSpacing: 3, mb: 1 }}>
+          <Typography sx={{ fontFamily: BEBAS, fontSize: { xs: 28, md: 40 }, letterSpacing: 3, mb: 1 }}>
             {tournament?.title}
           </Typography>
           <Typography sx={{ color: '#666', fontSize: 14 }}>

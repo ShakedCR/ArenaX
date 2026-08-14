@@ -108,10 +108,10 @@ export default function Blackjack() {
       {/* Header: title + round pips + game ID */}
       <Box sx={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        px: 4, py: 2, borderBottom: '1px solid rgba(201,168,76,0.1)',
+        px: { xs: 2, md: 4 }, py: 2, borderBottom: '1px solid rgba(201,168,76,0.1)',
       }}>
         <Typography sx={{ fontFamily: BEBAS, fontSize: 22, letterSpacing: 3, color: GOLD }}>BLACKJACK</Typography>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 1 }}>
           {Array.from({ length: totalRounds }).map((_, i) => (
             <Box key={i} sx={{
               width: 10, height: 10, borderRadius: '50%',
@@ -121,16 +121,20 @@ export default function Blackjack() {
           ))}
           <Typography sx={{ color: '#888', fontSize: 13, ml: 1 }}>Round {round || '—'} / {totalRounds}</Typography>
         </Box>
-        <Typography sx={{ color: '#555', fontSize: 12 }}>Game #{gameId?.slice(-6)}</Typography>
+        <Typography sx={{ color: '#888', fontSize: 13, display: { xs: 'block', md: 'none' } }}>
+          R {round || '—'}/{totalRounds}
+        </Typography>
+        <Typography sx={{ color: '#555', fontSize: 12, display: { xs: 'none', md: 'block' } }}>Game #{gameId?.slice(-6)}</Typography>
       </Box>
 
-      <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 130px)' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: { xs: 'auto', md: 'calc(100vh - 130px)' } }}>
         {/* Game area */}
         <Box sx={{
-          flex: '0 0 68%', display: 'flex', flexDirection: 'column',
+          flex: { xs: '1 1 auto', md: '0 0 68%' }, display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'space-between',
-          px: 4, py: 5, position: 'relative',
-          borderRight: '1px solid rgba(255,255,255,0.04)',
+          px: { xs: 2, md: 4 }, py: { xs: 3, md: 5 }, position: 'relative',
+          borderRight: { xs: 'none', md: '1px solid rgba(255,255,255,0.04)' },
+          borderBottom: { xs: '1px solid rgba(255,255,255,0.04)', md: 'none' },
         }}>
           {phase === 'round-result' && (
             <RoundResultOverlay result={roundResult} currentUserId={userId} round={round} />
@@ -198,7 +202,7 @@ export default function Blackjack() {
         </Box>
 
         {/* Leaderboard sidebar */}
-        <Box sx={{ flex: '0 0 32%', p: 3 }}>
+        <Box sx={{ flex: { xs: '1 1 auto', md: '0 0 32%' }, p: 3 }}>
           <BlackjackLeaderboard entries={leaderboard} playerNames={playerNames} currentUserId={userId} disconnectedPlayers={disconnectedPlayers} />
         </Box>
       </Box>

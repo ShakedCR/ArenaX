@@ -30,66 +30,68 @@ export default function PlayersTable({ players, userId, tournamentStatus }) {
         )}
       </Box>
 
-      {/* Table header */}
-      <Box sx={{
-        display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 100px',
-        gap: 1, px: 2, pb: 1,
-        borderBottom: '1px solid rgba(255,255,255,0.06)'
-      }}>
-        {['#', 'Player', 'Stage', 'Score', 'Status'].map(h => (
-          <Typography key={h} sx={{ color: '#555', fontSize: 11, textTransform: 'uppercase' }}>
-            {h}
-          </Typography>
-        ))}
+      <Box sx={{ overflowX: 'auto' }}>
+        {/* Table header */}
+        <Box sx={{
+          display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 100px',
+          gap: 1, px: 2, pb: 1, minWidth: 360,
+          borderBottom: '1px solid rgba(255,255,255,0.06)'
+        }}>
+          {['#', 'Player', 'Stage', 'Score', 'Status'].map(h => (
+            <Typography key={h} sx={{ color: '#555', fontSize: 11, textTransform: 'uppercase' }}>
+              {h}
+            </Typography>
+          ))}
+        </Box>
+
+        {sorted.map((player, index) => {
+          const style = STATUS_STYLE[player.status] || STATUS_STYLE.eliminated
+          const isMe = player._id === userId
+
+          return (
+            <Box key={player._id} sx={{
+              display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 100px',
+              gap: 1, alignItems: 'center',
+              px: 2, py: 1.5, minWidth: 360,
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              bgcolor: isMe ? 'rgba(201,168,76,0.04)' : 'transparent',
+              '&:last-child': { borderBottom: 'none' }
+            }}>
+              <Typography sx={{ color: '#555', fontSize: 13 }}>{index + 1}</Typography>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{
+                  width: 28, height: 28, borderRadius: '50%',
+                  bgcolor: 'rgba(201,168,76,0.1)',
+                  border: '1px solid rgba(201,168,76,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, color: GOLD
+                }}>
+                  {(player.username || player.fullName || 'P')[0].toUpperCase()}
+                </Box>
+                <Box>
+                  <Typography sx={{ fontSize: 14, color: isMe ? GOLD : 'white' }}>
+                    {player.username || player.fullName || 'Player'}
+                    {isMe && <span style={{ color: GOLD, fontSize: 11, marginLeft: 6 }}>You</span>}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Typography sx={{ fontSize: 13, color: '#aaa' }}>
+                {player.stage > 0 ? `Stage ${player.stage}` : '—'}
+              </Typography>
+
+              <Typography sx={{ fontSize: 13, color: player.score != null ? GOLD : '#555' }}>
+                {player.score != null ? `⬡ ${player.score}` : '—'}
+              </Typography>
+
+              <Box sx={{ px: 1.5, py: 0.4, borderRadius: 1, bgcolor: style.bg, display: 'inline-flex', width: 'fit-content' }}>
+                <Typography sx={{ fontSize: 11, color: style.color }}>{style.label}</Typography>
+              </Box>
+            </Box>
+          )
+        })}
       </Box>
-
-      {sorted.map((player, index) => {
-        const style = STATUS_STYLE[player.status] || STATUS_STYLE.eliminated
-        const isMe = player._id === userId
-
-        return (
-          <Box key={player._id} sx={{
-            display: 'grid', gridTemplateColumns: '32px 1fr 80px 80px 100px',
-            gap: 1, alignItems: 'center',
-            px: 2, py: 1.5,
-            borderBottom: '1px solid rgba(255,255,255,0.04)',
-            bgcolor: isMe ? 'rgba(201,168,76,0.04)' : 'transparent',
-            '&:last-child': { borderBottom: 'none' }
-          }}>
-            <Typography sx={{ color: '#555', fontSize: 13 }}>{index + 1}</Typography>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box sx={{
-                width: 28, height: 28, borderRadius: '50%',
-                bgcolor: 'rgba(201,168,76,0.1)',
-                border: '1px solid rgba(201,168,76,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, color: GOLD
-              }}>
-                {(player.username || player.fullName || 'P')[0].toUpperCase()}
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: 14, color: isMe ? GOLD : 'white' }}>
-                  {player.username || player.fullName || 'Player'}
-                  {isMe && <span style={{ color: GOLD, fontSize: 11, marginLeft: 6 }}>You</span>}
-                </Typography>
-              </Box>
-            </Box>
-
-            <Typography sx={{ fontSize: 13, color: '#aaa' }}>
-              {player.stage > 0 ? `Stage ${player.stage}` : '—'}
-            </Typography>
-
-            <Typography sx={{ fontSize: 13, color: player.score != null ? GOLD : '#555' }}>
-              {player.score != null ? `⬡ ${player.score}` : '—'}
-            </Typography>
-
-            <Box sx={{ px: 1.5, py: 0.4, borderRadius: 1, bgcolor: style.bg, display: 'inline-flex', width: 'fit-content' }}>
-              <Typography sx={{ fontSize: 11, color: style.color }}>{style.label}</Typography>
-            </Box>
-          </Box>
-        )
-      })}
     </Box>
   )
 }

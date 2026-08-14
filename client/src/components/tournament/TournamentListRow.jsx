@@ -15,7 +15,8 @@ function TournamentListRow({ tournament, onClick }) {
       onClick={onClick}
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: { xs: 'column', md: 'row' },
+        alignItems: { xs: 'flex-start', md: 'center' },
         justifyContent: 'space-between',
         bgcolor: DARK2,
         border: '1px solid rgba(201,168,76,0.1)',
@@ -23,6 +24,7 @@ function TournamentListRow({ tournament, onClick }) {
         px: 3,
         py: 2,
         mb: 1.5,
+        gap: { xs: 1, md: 0 },
         cursor: 'pointer',
         transition: 'all 0.2s',
         '&:hover': {
@@ -31,7 +33,7 @@ function TournamentListRow({ tournament, onClick }) {
         }
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 220 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: { xs: 0, md: 220 } }}>
         <Box
           sx={{
             width: 36,
@@ -59,7 +61,7 @@ function TournamentListRow({ tournament, onClick }) {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, md: 4 }, flexWrap: 'wrap' }}>
         <Box sx={{ textAlign: 'center' }}>
           <Typography sx={{ color: '#666', fontSize: 11 }}>
             Prize

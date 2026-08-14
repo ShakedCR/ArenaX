@@ -12,7 +12,7 @@ export default function TurnIndicator({ currentPlayerId, phase, isMyTurn, player
 
       {turnTimeLeft !== null && (
         <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-          <Box sx={{ width: 200, height: 4, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
+          <Box sx={{ width: { xs: '100%', md: 200 }, maxWidth: 200, height: 4, bgcolor: 'rgba(255,255,255,0.1)', borderRadius: 2, overflow: 'hidden' }}>
             <Box sx={{
               height: '100%',
               width: `${(turnTimeLeft / 60) * 100}%`,

@@ -104,10 +104,10 @@ export default function Lobby() {
         tokens={user?.walletBalance || 0}
       />
 
-      <Box sx={{ px: 6, py: 4 }}>
+      <Box sx={{ px: { xs: 2, md: 6 }, py: 4 }}>
         <ActiveGameBanner />
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 4 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'flex-start' }, gap: { xs: 1.5, md: 0 }, mb: 4 }}>
           <Box>
             <Typography sx={{ fontFamily: BEBAS, fontSize: 36, letterSpacing: 3 }}>
               TOURNAMENT LOBBY
