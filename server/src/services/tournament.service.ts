@@ -6,8 +6,6 @@
 import { Types } from "mongoose";
 import Tournament from "../models/tournament.model";
 import { getIO } from "../socket";
-import QRCode from "qrcode";
-
 /**
  * Generate a unique invite code
  */
@@ -31,24 +29,6 @@ const generateUniqueInviteCode = async (): Promise<string> => {
   }
 
   return inviteCode!;
-};
-
-/**
- * Generate QR code data URL
- */
-const generateQRCode = async (url: string): Promise<string> => {
-  try {
-    const qrDataUrl = await QRCode.toDataURL(url, {
-      errorCorrectionLevel: "H" as const,
-      margin: 1,
-      width: 300
-    });
-
-    return qrDataUrl as string;
-  } catch (error) {
-    console.error("QR code generation error:", error);
-    throw new Error("Failed to generate QR code");
-  }
 };
 
 /**
@@ -264,12 +244,10 @@ export const getInviteLink = async (
 
   const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
   const inviteLink = `${clientUrl}/tournaments/join/${tournament.inviteCode}`;
-  const qrImage = await generateQRCode(inviteLink);
 
   return {
     inviteCode: tournament.inviteCode,
     inviteLink,
-    qrImage,
     isPrivate: tournament.isPrivate,
     hasPassword: !!tournament.privatePassword
   };
@@ -306,33 +284,11 @@ export const regenerateInviteCode = async (
 
   const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
   const inviteLink = `${clientUrl}/tournaments/join/${newInviteCode}`;
-  const qrImage = await generateQRCode(inviteLink);
 
   return {
     inviteCode: newInviteCode,
-    inviteLink,
-    qrImage
+    inviteLink
   };
-};
-
-/**
- * Generate QR image for tournament
- */
-export const getQRImage = async (tournamentId: string): Promise<string> => {
-  if (!isValidObjectId(tournamentId)) {
-    throw { status: 400, message: "Invalid tournament ID" };
-  }
-
-  const tournament = await Tournament.findById(tournamentId);
-
-  if (!tournament) {
-    throw { status: 404, message: "Tournament not found" };
-  }
-
-  const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
-  const inviteLink = `${clientUrl}/tournaments/join/${tournament.inviteCode}`;
-
-  return generateQRCode(inviteLink);
 };
 
 /**
@@ -384,7 +340,6 @@ export const TournamentService = {
   getTournamentByInviteCode,
   getInviteLink,
   regenerateInviteCode,
-  getQRImage,
   openTournament,
   generateUniqueInviteCode,
   getAdvancingCount,

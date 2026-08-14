@@ -12,8 +12,7 @@ import {
   getTournamentInviteLink,
   getTournamentByInviteCode,
   joinTournamentByInviteCode,
-  regenerateTournamentInviteCode,
-  getQRCode
+  regenerateTournamentInviteCode
 } from "../blackjack/tournament.controller";
 import { authMiddleware } from "../middleware/auth.middleware";
 
@@ -26,7 +25,6 @@ router.get("/invite/:inviteCode", getTournamentByInviteCode);
 /* ================= Protected routes ================= */
 router.get("/my", authMiddleware, getMyTournaments);
 router.get("/:id", getTournamentById);
-router.get("/:id/qr", authMiddleware, getQRCode);
 router.post("/", authMiddleware, createTournament);
 router.post("/:id/join", authMiddleware, joinTournament);
 router.post("/invite/:inviteCode/join", authMiddleware, joinTournamentByInviteCode);

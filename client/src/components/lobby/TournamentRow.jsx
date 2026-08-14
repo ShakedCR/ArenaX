@@ -1,8 +1,6 @@
-﻿import { Box, Button, Modal, Typography, CircularProgress } from '@mui/material'
+import { Box, Button, Modal, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/useAuth'
-import api from '../../services/api'
-import QRCodeDisplay from '../common/QRCodeDisplay'
 
 const GOLD = '#C9A84C'
 const DARK2 = '#12121A'
@@ -40,36 +38,9 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
   const { user } = useAuth()
   const { title, gameTitle, entryFee, participants, maxParticipants, status, createdBy, isPrivate } = tournament
   const [showInvite, setShowInvite] = useState(false)
-  const [showQR, setShowQR] = useState(false)
-  const [qrData, setQrData] = useState(null)
-  const [loadingQR, setLoadingQR] = useState(false)
 
   const isCreator = normalizeId(user?.id || user?._id) === normalizeId(createdBy)
   const inviteLink = tournament.inviteCode ? `${window.location.origin}/tournaments/join/${tournament.inviteCode}` : null
-
-  const handleShowQR = async () => {
-    if (!inviteLink) return
-
-    if (!isCreator) {
-      setQrData({ inviteLink })
-      setShowQR(true)
-      return
-    }
-
-    setLoadingQR(true)
-    try {
-      const response = await api.get(`/tournaments/${tournament._id}/invite-link`)
-      const payload = response.data || {}
-      // payload: { inviteCode, inviteLink }
-      const qrImageRes = await api.get(`/tournaments/${tournament._id}/qr`).catch(() => null)
-      setQrData({ inviteLink: payload.inviteLink, inviteCode: payload.inviteCode, qrImage: qrImageRes?.data?.data?.qrImage || qrImageRes?.data?.qrImage || null })
-      setShowQR(true)
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoadingQR(false)
-    }
-  }
 
   const handleCopyLink = () => {
     if (inviteLink) navigator.clipboard.writeText(inviteLink)
@@ -109,18 +80,12 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
             </Typography>
           </Box>
         </Box>
+
         <Box sx={{ display: 'flex', gap: 1, minWidth: { xs: 0, md: 280 }, justifyContent: { xs: 'flex-start', md: 'flex-end' }, flexWrap: 'wrap' }}>
-          {inviteLink && (
-            <Button onClick={handleShowQR} disabled={loadingQR} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
-              {loadingQR ? <CircularProgress size={20} /> : 'QR'}
-            </Button>
-          )}
           {isCreator && (
-            <>
-              <Button onClick={() => setShowInvite(true)} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
-                Invite
-              </Button>
-            </>
+            <Button onClick={() => setShowInvite(true)} sx={{ border: '1px solid rgba(201,168,76,0.3)', color: GOLD, px: 2, fontSize: 12 }}>
+              Invite
+            </Button>
           )}
           {isCreator && status === 'draft' && (
             <Button onClick={() => onOpen(tournament)} sx={{ border: '1px solid rgba(76,175,80,0.4)', color: '#4caf50', px: 2, fontSize: 12 }}>
@@ -147,8 +112,6 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
           })()}
         </Box>
       </Box>
-
-      <QRCodeDisplay open={showQR} onClose={() => setShowQR(false)} inviteLink={qrData?.inviteLink} qrImage={qrData?.qrImage} tournamentName={title} isLoading={loadingQR} hasPassword={isPrivate} />
 
       <Modal open={showInvite} onClose={() => setShowInvite(false)}>
         <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: DARK2, borderRadius: 2, p: 4, width: '100%', maxWidth: 460 }}>
