@@ -17,6 +17,7 @@ type GenerateTriviaQuestionsParams = {
 
 const OLLAMA_URL = process.env.OLLAMA_HOST || "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3";
+const OLLAMA_GENERATE_TIMEOUT_MS = Number(process.env.OLLAMA_GENERATE_TIMEOUT_MS) || 120_000;
 
 const normalizeText = (value: unknown): string => {
   return String(value || "")
@@ -234,22 +235,24 @@ const validateAndNormalizeQuestions = (
 };
 
 const callOllama = async (prompt: string): Promise<string> => {
-  const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages: [
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      stream: false
-    })
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${OLLAMA_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        messages: [{ role: "user", content: prompt }],
+        stream: false,
+      }),
+      signal: AbortSignal.timeout(OLLAMA_GENERATE_TIMEOUT_MS),
+    });
+  } catch (err: any) {
+    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+      throw new Error(`Ollama generate timed out after ${OLLAMA_GENERATE_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  }
 
   if (!response.ok) {
     throw new Error(`Ollama request failed with status ${response.status}`);
