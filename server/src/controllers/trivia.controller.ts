@@ -209,20 +209,6 @@ export const createTriviaTournament = async (
       inviteCode: generateInviteCode()
     });
 
-    if (safeEntryFee > 0) {
-      await User.findByIdAndUpdate(req.userId, { $inc: { walletBalance: -safeEntryFee } });
-      await Transaction.create({
-        user: req.userId,
-        tournament: tournament._id,
-        amount: safeEntryFee,
-        type: "entry_fee",
-        status: "completed",
-        description: `Entry fee for tournament: ${title}`
-      });
-      const updatedUser = await User.findById(req.userId).select("walletBalance").lean() as { walletBalance: number } | null;
-      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: updatedUser?.walletBalance ?? 0 });
-    }
-
     const triviaGame = await TriviaGame.create({
       tournament: tournament._id,
       topic: safeTopic,
@@ -237,6 +223,30 @@ export const createTriviaTournament = async (
       answers: [],
       leaderboard: []
     });
+
+    if (safeEntryFee > 0) {
+      const deducted = await User.findOneAndUpdate(
+        { _id: req.userId, walletBalance: { $gte: safeEntryFee } },
+        { $inc: { walletBalance: -safeEntryFee } },
+        { new: true }
+      ).select("walletBalance");
+
+      if (!deducted) {
+        await TriviaGame.findByIdAndDelete(triviaGame._id);
+        await Tournament.findByIdAndDelete(tournament._id);
+        return res.status(400).json({ message: "Insufficient wallet balance to create this tournament" });
+      }
+
+      await Transaction.create({
+        user: req.userId,
+        tournament: tournament._id,
+        amount: safeEntryFee,
+        type: "entry_fee",
+        status: "completed",
+        description: `Entry fee for tournament: ${title}`
+      });
+      getIO().to(`user:${req.userId}`).emit("wallet:updated", { walletBalance: deducted.walletBalance });
+    }
 
     // Phase 2: save document chunks to DB now that we have a tournamentId
     if (preparedChunks && uploadedFile) {
