@@ -1,8 +1,5 @@
 import { Box, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
-const DARK2 = '#12121A'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK2, BEBAS } from '../../styles/themeConstants'
 
 const STATUS_STYLE = {
   active:     { label: 'Active',     bg: '#1a3a5c', color: '#2196f3' },

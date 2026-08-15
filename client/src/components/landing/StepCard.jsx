@@ -1,8 +1,5 @@
 import { Box, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
 export default function StepCard({ step }) {
   return (

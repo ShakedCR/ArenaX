@@ -1,8 +1,6 @@
 import { Box, Button, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
+import { GOLD, DARK } from '../../styles/themeConstants'
 
 export default function Navbar() {
   const navigate = useNavigate()

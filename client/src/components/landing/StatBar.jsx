@@ -1,6 +1,5 @@
 import { Box, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
+import { GOLD } from '../../styles/themeConstants'
 
 const stats = [
   { num: '2', label: 'GAMES', sub: 'Blackjack, Trivia' },

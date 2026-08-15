@@ -1,9 +1,5 @@
 import { Box, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
-const DARK2 = '#12121A'
-const DARK3 = '#1C1C28'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK2, DARK3, BEBAS } from '../../styles/themeConstants'
 
 export default function GameCard({ game, onPlay }) {
   return (
