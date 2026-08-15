@@ -10,6 +10,17 @@ const CHUNK_OVERLAP = 50;
 const TOP_N_CHUNKS = 5;
 const MAX_EMBED_CHARS = 350;
 
+// Hard fallback cap for chunks that can't rely on blank-line paragraph breaks
+// (e.g. a poorly-parsed PDF with no double-newlines at all). Set equal to
+// MAX_EMBED_CHARS so every chunk that reaches getEmbedding() is represented
+// in full — never silently truncated.
+const MAX_CHUNK_CHARS = MAX_EMBED_CHARS;
+
+// Only the top TOP_N_CHUNKS chunks are ever read back for a given document,
+// so there is no benefit to embedding more than a small bounded number of
+// them — this keeps upload processing time bounded for large documents.
+const MAX_CHUNKS_PER_DOCUMENT = 50;
+
 // ── Text extraction ────────────────────────────────────────────────────────────
 
 const extractText = async (buffer: Buffer, mimetype: string): Promise<string> => {
@@ -21,6 +32,50 @@ const extractText = async (buffer: Buffer, mimetype: string): Promise<string> =>
 };
 
 // ── Chunking ───────────────────────────────────────────────────────────────────
+
+/**
+ * Hard fallback for a chunk that exceeds MAX_CHUNK_CHARS even after normal
+ * paragraph merging (e.g. one huge paragraph, or text with no blank-line
+ * breaks at all). Splits on word boundaries so no text is silently dropped,
+ * and preserves original order. Below MAX_CHUNK_CHARS this is a no-op.
+ */
+const splitOversized = (chunk: string): string[] => {
+  if (chunk.length <= MAX_CHUNK_CHARS) return [chunk];
+
+  const pieces: string[] = [];
+  const words = chunk.split(" ");
+  let current = "";
+
+  const flush = () => {
+    if (current) {
+      pieces.push(current);
+      current = "";
+    }
+  };
+
+  for (const word of words) {
+    if (word.length > MAX_CHUNK_CHARS) {
+      // A single "word" longer than the cap (e.g. a URL) — hard-slice by
+      // character count rather than dropping it.
+      flush();
+      for (let i = 0; i < word.length; i += MAX_CHUNK_CHARS) {
+        pieces.push(word.slice(i, i + MAX_CHUNK_CHARS));
+      }
+      continue;
+    }
+
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= MAX_CHUNK_CHARS) {
+      current = candidate;
+    } else {
+      flush();
+      current = word;
+    }
+  }
+
+  flush();
+  return pieces;
+};
 
 const chunkText = (text: string): string[] => {
   const normalized = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
@@ -36,7 +91,7 @@ const chunkText = (text: string): string[] => {
       current = current ? `${current} ${trimmed}` : trimmed;
     } else {
       if (current) {
-        chunks.push(current.trim());
+        chunks.push(...splitOversized(current.trim()));
         // Overlap: carry the tail of the previous chunk
         const words = current.split(" ");
         const overlapWords = words.slice(-Math.floor(CHUNK_OVERLAP / 5));
@@ -47,8 +102,8 @@ const chunkText = (text: string): string[] => {
     }
   }
 
-  if (current.trim()) chunks.push(current.trim());
-  return chunks.filter(c => c.length > 20);
+  if (current.trim()) chunks.push(...splitOversized(current.trim()));
+  return chunks.filter(c => c.length > 20).slice(0, MAX_CHUNKS_PER_DOCUMENT);
 };
 
 // ── Embeddings ─────────────────────────────────────────────────────────────────
@@ -158,33 +213,6 @@ export const getContextFromChunks = async (
   const queryEmbedding = await getEmbedding(query);
 
   return preparedChunks
-    .map(chunk => ({
-      text: chunk.text,
-      score: cosineSimilarity(queryEmbedding, chunk.embedding),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topN)
-    .map(c => c.text);
-};
-
-/**
- * DB-based similarity search — used when chunks are already saved
- * (e.g. for future retrieval after creation).
- */
-export const findRelevantChunks = async (
-  query: string,
-  tournamentId: string,
-  topN: number = TOP_N_CHUNKS
-): Promise<string[]> => {
-  const chunks = await DocumentChunk.find({ tournament: tournamentId })
-    .select("text embedding")
-    .lean();
-
-  if (chunks.length === 0) return [];
-
-  const queryEmbedding = await getEmbedding(query);
-
-  return chunks
     .map(chunk => ({
       text: chunk.text,
       score: cosineSimilarity(queryEmbedding, chunk.embedding),
