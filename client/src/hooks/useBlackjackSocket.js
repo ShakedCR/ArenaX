@@ -255,7 +255,22 @@ export function useBlackjackSocket({ gameId, userId, navigate }) {
     }
     sock.on('elo:updated', handleEloUpdated)
 
-    joinGame(gameId).then(() => requestBlackjackState(gameId))
+    joinGame(gameId)
+      .then((joinRes) => {
+        if (!joinRes?.ok) {
+          throw new Error(joinRes?.message || 'Failed to join game')
+        }
+        return requestBlackjackState(gameId)
+      })
+      .then((stateRes) => {
+        if (!stateRes?.ok) {
+          throw new Error(stateRes?.message || 'Failed to request game state')
+        }
+      })
+      .catch((err) => {
+        console.error('[useBlackjackSocket] Failed to initialize game:', err)
+        navigate('/lobby')
+      })
 
     return () => {
       // Tell the server the player left the page — triggers the 60s forfeit window.
