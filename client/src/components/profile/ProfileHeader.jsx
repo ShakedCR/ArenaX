@@ -10,6 +10,7 @@ export default function ProfileHeader({
   usernameError,
   usernameLoading,
   avatarLoading,
+  avatarError,
   onEditUsername,
   onUsernameChange,
   onSaveUsername,
@@ -86,6 +87,12 @@ export default function ProfileHeader({
           onChange={(e) => onAvatarChange(e.target.files?.[0] || null)}
         />
       </Box>
+
+      {avatarError && (
+        <Typography sx={{ color: 'red', fontSize: 12, textAlign: 'center', maxWidth: 200 }}>
+          {avatarError}
+        </Typography>
+      )}
 
       <Box sx={{ textAlign: 'center' }}>
         <Typography sx={{ fontFamily: BEBAS, fontSize: 28, letterSpacing: 2 }}>

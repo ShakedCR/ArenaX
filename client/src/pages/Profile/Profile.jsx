@@ -23,6 +23,7 @@ export default function Profile() {
     usernameError,
     usernameLoading,
     avatarLoading,
+    avatarError,
     setNewUsername,
     getGameStats,
     handleEditUsername,
@@ -48,6 +49,7 @@ export default function Profile() {
           usernameError={usernameError}
           usernameLoading={usernameLoading}
           avatarLoading={avatarLoading}
+          avatarError={avatarError}
           onEditUsername={handleEditUsername}
           onUsernameChange={setNewUsername}
           onSaveUsername={handleSaveUsername}
