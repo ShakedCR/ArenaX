@@ -132,6 +132,14 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
 
     const userObjectId = new Types.ObjectId(req.userId);
 
+    // Distinguish the common failure cases up front using the document already in hand,
+    // before attempting the atomic participant-add below. The atomic update remains the
+    // sole authoritative, concurrency-safe gate — these are best-effort early, clearer messages.
+    const alreadyParticipant = tournament.participants.some(p => p.toString() === req.userId);
+    if (alreadyParticipant) return res.status(400).json({ message: "User already joined this tournament" });
+    if (tournament.participants.length >= tournament.maxParticipants)
+      return res.status(400).json({ message: "Tournament is full" });
+
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -153,7 +161,18 @@ export const joinTournament = async (req: AuthRequest, res: Response) => {
       { new: true }
     );
 
-    if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
+    if (!joined) {
+      // Rare race between the checks above and this atomic update — re-read to report
+      // accurately instead of assuming duplicate-join.
+      const current = await Tournament.findById(id).select("participants maxParticipants status");
+      if (current?.participants.some(p => p.toString() === req.userId))
+        return res.status(400).json({ message: "User already joined this tournament" });
+      if (current && current.participants.length >= current.maxParticipants)
+        return res.status(400).json({ message: "Tournament is full" });
+      if (current && current.status !== "open")
+        return res.status(400).json({ message: "Tournament is not open for registration" });
+      return res.status(400).json({ message: "Unable to join tournament" });
+    }
 
     if (tournament.entryFee > 0) {
       const deducted = await User.findOneAndUpdate(
@@ -406,6 +425,14 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
     const userObjectId = new Types.ObjectId(req.userId);
     const tournamentId = (tournament._id as Types.ObjectId).toString();
 
+    // Distinguish the common failure cases up front using the document already in hand,
+    // before attempting the atomic participant-add below. The atomic update remains the
+    // sole authoritative, concurrency-safe gate — these are best-effort early, clearer messages.
+    const alreadyParticipant = tournament.participants.some(p => p.toString() === req.userId);
+    if (alreadyParticipant) return res.status(400).json({ message: "User already joined this tournament" });
+    if (tournament.participants.length >= tournament.maxParticipants)
+      return res.status(400).json({ message: "Tournament is full" });
+
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
@@ -427,7 +454,18 @@ export const joinTournamentByInviteCode = async (req: AuthRequest, res: Response
       { new: true }
     );
 
-    if (!joined) return res.status(400).json({ message: "User already joined this tournament" });
+    if (!joined) {
+      // Rare race between the checks above and this atomic update — re-read to report
+      // accurately instead of assuming duplicate-join.
+      const current = await Tournament.findById(tournament._id).select("participants maxParticipants status");
+      if (current?.participants.some(p => p.toString() === req.userId))
+        return res.status(400).json({ message: "User already joined this tournament" });
+      if (current && current.participants.length >= current.maxParticipants)
+        return res.status(400).json({ message: "Tournament is full" });
+      if (current && current.status !== "open")
+        return res.status(400).json({ message: "Tournament is not open for registration" });
+      return res.status(400).json({ message: "Unable to join tournament" });
+    }
 
     if (tournament.entryFee > 0) {
       const deducted = await User.findOneAndUpdate(
