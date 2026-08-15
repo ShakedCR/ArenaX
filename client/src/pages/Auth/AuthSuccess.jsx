@@ -18,7 +18,10 @@ export default function AuthSuccess() {
           setUser(res.data.user)
           navigate('/lobby')
         })
-        .catch(() => navigate('/login'))
+        .catch(() => {
+          localStorage.removeItem('token')
+          navigate('/login')
+        })
     } else {
       navigate('/login')
     }
