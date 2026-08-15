@@ -5,6 +5,8 @@ import AuthInput from '../../components/common/AuthInput'
 import { useAuth } from '../../contexts/useAuth'
 import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
 
+const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 export default function Login() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -93,7 +95,7 @@ export default function Login() {
 
         <Button
           fullWidth
-          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`}
+          onClick={() => window.location.href = `${SERVER_URL}/api/auth/google`}
           sx={{
             bgcolor: '#1a1a2e', color: 'white', py: 1.5,
             border: '1px solid rgba(255,255,255,0.1)',
