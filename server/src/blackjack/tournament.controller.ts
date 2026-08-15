@@ -528,5 +528,38 @@ export const regenerateTournamentInviteCode = async (req: AuthRequest, res: Resp
   }
 };
 
+// The original password is only ever hashed, never stored in readable form
+// (see createTournament), so it cannot be looked up later — resetting it is
+// the only way for a creator to recover a shareable password.
+const generatePrivatePassword = (): string =>
+  Math.random().toString(36).substring(2, 8).toUpperCase();
+
+export const regenerateTournamentPassword = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    if (!req.userId) return res.status(401).json({ message: "Unauthorized" });
+    if (!isValidObjectId(id)) return res.status(400).json({ message: "Invalid tournament ID" });
+
+    const tournament = await Tournament.findById(id);
+    if (!tournament) return res.status(404).json({ message: "Tournament not found" });
+    if (!isTournamentCreator(tournament.createdBy, req.userId))
+      return res.status(403).json({ message: "Forbidden" });
+    if (!tournament.isPrivate)
+      return res.status(400).json({ message: "Only private tournaments have a password" });
+
+    const newPassword = generatePrivatePassword();
+    tournament.privatePassword = await bcrypt.hash(newPassword, 10);
+    await tournament.save();
+
+    return res.status(200).json({
+      message: "Password regenerated successfully. The previous password no longer works.",
+      privatePassword: newPassword
+    });
+  } catch (error) {
+    console.error("Regenerate password error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 
 
