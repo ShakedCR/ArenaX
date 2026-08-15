@@ -15,6 +15,7 @@ export default function useProfile() {
   const [usernameError, setUsernameError] = useState('')
   const [usernameLoading, setUsernameLoading] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
+  const [avatarError, setAvatarError] = useState('')
 
   useEffect(() => {
     if (!userId) {
@@ -107,6 +108,7 @@ export default function useProfile() {
   const handleAvatarChange = async (file) => {
     if (!file || !userId) return
     setAvatarLoading(true)
+    setAvatarError('')
     try {
       const blob = await compressImage(file)
       const formData = new FormData()
@@ -115,6 +117,11 @@ export default function useProfile() {
       setUser(res.data.user)
     } catch (err) {
       console.error('[useProfile] avatar upload error:', err)
+      setAvatarError(
+        err.message === 'Failed to load image'
+          ? 'Unsupported image format, try JPG or PNG'
+          : 'Failed to update avatar, please try again'
+      )
     } finally {
       setAvatarLoading(false)
     }
@@ -169,6 +176,7 @@ export default function useProfile() {
     usernameError,
     usernameLoading,
     avatarLoading,
+    avatarError,
     setNewUsername,
     getGameStats,
     handleEditUsername,
