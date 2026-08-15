@@ -16,14 +16,19 @@ export default function Login() {
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     try {
       await login(form.email, form.password)
       const params = new URLSearchParams(location.search)
       const redirect = params.get('redirect')
       navigate(redirect || '/lobby')
-    } catch {
-      setError('Login failed. Please check your credentials.')
+    } catch (err) {
+      if (err.response?.status === 400) {
+        setError('Invalid email or password.')
+      } else {
+        setError('Unable to sign in. Please try again later.')
+      }
     }
   }
 
@@ -55,38 +60,40 @@ export default function Login() {
           </Typography>
         </Box>
 
-        <AuthInput
-          label="Email"
-          placeholder="Enter your email"
-          type="email"
-          value={form.email}
-          onChange={handleChange('email')}
-        />
-        <AuthInput
-          label="Password"
-          placeholder="Enter your password"
-          type="password"
-          icon="🔒"
-          value={form.password}
-          onChange={handleChange('password')}
-        />
+        <Box component="form" onSubmit={handleSubmit}>
+          <AuthInput
+            label="Email"
+            placeholder="Enter your email"
+            type="email"
+            value={form.email}
+            onChange={handleChange('email')}
+          />
+          <AuthInput
+            label="Password"
+            placeholder="Enter your password"
+            type="password"
+            icon="🔒"
+            value={form.password}
+            onChange={handleChange('password')}
+          />
 
-        {error && (
-          <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
-            {error}
-          </Typography>
-        )}
+          {error && (
+            <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
+              {error}
+            </Typography>
+          )}
 
-        <Button
-          fullWidth
-          onClick={handleSubmit}
-          sx={{
-            bgcolor: GOLD, color: DARK, py: 1.5, mt: 1,
-            fontWeight: 700, fontSize: 15,
-            '&:hover': { bgcolor: '#E8C97A' }
-          }}>
-          Sign In
-        </Button>
+          <Button
+            fullWidth
+            type="submit"
+            sx={{
+              bgcolor: GOLD, color: DARK, py: 1.5, mt: 1,
+              fontWeight: 700, fontSize: 15,
+              '&:hover': { bgcolor: '#E8C97A' }
+            }}>
+            Sign In
+          </Button>
+        </Box>
 
         <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)',
           '&::before, &::after': { borderColor: 'rgba(255,255,255,0.1)' } }}>
