@@ -6,11 +6,7 @@ import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import { connectSocket } from '../../services/socket'
 import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
-
-const gameIcons = {
-  Blackjack: '♠',
-  Trivia: '❓',
-}
+import { gameIcons } from '../../styles/gameConstants'
 
 export default function WaitingRoom() {
   const { id } = useParams()

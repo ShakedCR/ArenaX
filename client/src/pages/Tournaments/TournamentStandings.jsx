@@ -8,8 +8,7 @@ import { connectSocket } from '../../services/socket'
 import StagesTimeline from '../../components/tournament/StagesTimeline'
 import PlayersTable from '../../components/tournament/PlayersTable'
 import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
-
-const gameIcons = { Blackjack: '♠', Trivia: '❓' }
+import { gameIcons } from '../../styles/gameConstants'
 
 const rankMedal = (rank) => {
   if (rank === 1) return '🥇'
