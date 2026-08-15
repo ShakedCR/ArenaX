@@ -22,7 +22,7 @@ router.get("/me", authMiddleware, getCurrentUserProfile);
 /* ================= Public routes ================= */
 
 router.get("/", authMiddleware, getAllUsers);
-router.get("/:id", getUserById);
+router.get("/:id", authMiddleware, getUserById);
 router.get("/:id/tournaments", getUserTournaments);
 router.get("/:id/matches", getUserMatches);
 router.get("/:id/stats", getUserStats);

@@ -118,7 +118,7 @@ export default function WaitingRoom() {
       setError('Tournament started but no game was returned')
       setStarting(false)
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to start tournament')
+      setError('Failed to start tournament. Please try again.')
       setStarting(false)
     }
   }
@@ -130,7 +130,7 @@ export default function WaitingRoom() {
     const sock = connectSocket(localStorage.getItem('token'))
     sock.emit('trivia:start', { triviaGameId: triviaGame._id }, (ack) => {
       if (!ack?.ok) {
-        setError(ack?.message || 'Failed to start trivia game')
+        setError('Failed to start trivia game. Please try again.')
         setStarting(false)
       }
     })

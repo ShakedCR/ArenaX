@@ -37,7 +37,7 @@ export default function TournamentJoin() {
     if (/full/i.test(message)) return 'Tournament is full.'
     if (/already joined/i.test(message)) return 'You already joined this tournament.'
     if (/private/i.test(message) && /use invite/i.test(message)) return 'This tournament is private. Use invite link or QR to join.'
-    return err?.response?.data?.message || 'Server/network error while joining the tournament.'
+    return 'Server/network error while joining the tournament.'
   }
 
   const joinByInviteCode = useCallback(async (code) => {
@@ -50,8 +50,10 @@ export default function TournamentJoin() {
     setJoining(true)
     setError('')
 
+    let currentTournament = null
+
     try {
-      const currentTournament = inviteToUse === inviteCode && tournament
+      currentTournament = inviteToUse === inviteCode && tournament
         ? tournament
         : (await api.get(`/tournaments/invite/${inviteToUse}`)).data?.tournament
 
@@ -78,6 +80,13 @@ export default function TournamentJoin() {
       navigate(`/tournament/${joinedTournament?._id}/waiting`)
       return true
     } catch (err) {
+      if (/already joined/i.test(err?.response?.data?.message || '')) {
+        const joinedTournament = currentTournament || tournament
+        if (joinedTournament?._id) {
+          navigate(`/tournament/${joinedTournament._id}/waiting`)
+          return true
+        }
+      }
       setError(mapJoinErrorMessage(err))
       return false
     } finally {
