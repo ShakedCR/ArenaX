@@ -5,6 +5,8 @@ import AuthInput from '../../components/common/AuthInput'
 import { useAuth } from '../../contexts/useAuth'
 import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
 
+const SERVER_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+
 const validate = (form) => {
   if (form.fullName.trim().length < 2)
     return 'Full name must be at least 2 characters'
@@ -27,7 +29,8 @@ export default function Register() {
 
   const handleChange = (field) => (e) => setForm({ ...form, [field]: e.target.value })
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault()
     const validationError = validate(form)
     if (validationError) {
       setError(validationError)
@@ -36,8 +39,12 @@ export default function Register() {
     try {
       await register(form.fullName, form.username, form.email, form.password)
       navigate('/lobby')
-    } catch {
-      setError('Registration failed. Please try again.')
+    } catch (err) {
+      if (err.response?.status === 400) {
+        setError('Email or username already taken.')
+      } else {
+        setError('Unable to create account. Please try again later.')
+      }
     }
   }
 
@@ -69,50 +76,52 @@ export default function Register() {
           </Typography>
         </Box>
 
-        <AuthInput
-          label="Full Name"
-          placeholder="Enter your full name"
-          value={form.fullName}
-          onChange={handleChange('fullName')}
-        />
-        <AuthInput
-          label="Username"
-          placeholder="Choose a username"
-          value={form.username}
-          onChange={handleChange('username')}
-        />
-        <AuthInput
-          label="Email"
-          placeholder="Enter your email"
-          type="email"
-          value={form.email}
-          onChange={handleChange('email')}
-        />
-        <AuthInput
-          label="Password"
-          placeholder="Enter your password"
-          type="password"
-          icon="🔒"
-          value={form.password}
-          onChange={handleChange('password')}
-        />
+        <Box component="form" onSubmit={handleSubmit}>
+          <AuthInput
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={form.fullName}
+            onChange={handleChange('fullName')}
+          />
+          <AuthInput
+            label="Username"
+            placeholder="Choose a username"
+            value={form.username}
+            onChange={handleChange('username')}
+          />
+          <AuthInput
+            label="Email"
+            placeholder="Enter your email"
+            type="email"
+            value={form.email}
+            onChange={handleChange('email')}
+          />
+          <AuthInput
+            label="Password"
+            placeholder="Enter your password"
+            type="password"
+            icon="🔒"
+            value={form.password}
+            onChange={handleChange('password')}
+          />
 
-        {error && (
-          <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
-            {error}
-          </Typography>
-        )}
+          {error && (
+            <Typography sx={{ color: 'red', fontSize: 13, mb: 1, textAlign: 'center' }}>
+              {error}
+            </Typography>
+          )}
 
-        <Button
-          fullWidth
-          onClick={handleSubmit}
-          sx={{
-            bgcolor: GOLD, color: DARK, py: 1.5, mt: 1,
-            fontWeight: 700, fontSize: 15,
-            '&:hover': { bgcolor: '#E8C97A' }
-          }}>
-          Create Account
-        </Button>
+          <Button
+            fullWidth
+            type="submit"
+            sx={{
+              bgcolor: GOLD, color: DARK, py: 1.5, mt: 1,
+              fontWeight: 700, fontSize: 15,
+              '&:hover': { bgcolor: '#E8C97A' }
+            }}>
+            Create Account
+          </Button>
+        </Box>
 
         <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.1)',
           '&::before, &::after': { borderColor: 'rgba(255,255,255,0.1)' } }}>
@@ -121,7 +130,7 @@ export default function Register() {
 
         <Button
           fullWidth
-          onClick={() => window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`}
+          onClick={() => window.location.href = `${SERVER_URL}/api/auth/google`}
           sx={{
             bgcolor: '#1a1a2e', color: 'white', py: 1.5,
             border: '1px solid rgba(255,255,255,0.1)',
