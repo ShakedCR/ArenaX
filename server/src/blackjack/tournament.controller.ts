@@ -224,22 +224,14 @@ export const updateTournament = async (req: AuthRequest, res: Response) => {
     if (!isTournamentCreator(tournament.createdBy, req.userId))
       return res.status(403).json({ message: "Forbidden" });
 
-    const allowedFields = [
-      "title", "description", "gameTitle", "gameMode", "platform", "format",
-      "entryFee", "prizePool", "maxParticipants", "startDate", "endDate", "settings", "status", "isPrivate"
-    ];
+    // Only cosmetic fields are editable here. Status transitions must go through
+    // openTournament/startTournament; entry fee, participant limits, game type,
+    // format, and privacy are fixed at creation time to prevent desyncing
+    // already-collected entry fees or bypassing game-creation on status changes.
+    const allowedFields = ["title", "description"];
     allowedFields.forEach(field => {
       if (req.body[field] !== undefined) (tournament as any)[field] = req.body[field];
     });
-
-    if (req.body.isPrivate === true) {
-      if (req.body.privatePassword !== undefined && String(req.body.privatePassword).trim().length >= 4) {
-        tournament.privatePassword = await bcrypt.hash(String(req.body.privatePassword), 10);
-      } else if (!tournament.privatePassword) {
-        return res.status(400).json({ message: "Private tournaments must include a password (min 4 characters)" });
-      }
-    }
-    if (req.body.isPrivate === false) tournament.privatePassword = "";
 
     await tournament.save();
     const safeTournament = await Tournament.findById(id)
