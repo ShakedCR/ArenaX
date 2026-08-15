@@ -7,6 +7,45 @@
 
 const CHUNK_SIZE = 300;
 const CHUNK_OVERLAP = 50;
+const MAX_EMBED_CHARS = 350;
+const MAX_CHUNK_CHARS = MAX_EMBED_CHARS;
+const MAX_CHUNKS_PER_DOCUMENT = 50;
+
+const splitOversized = (chunk: string): string[] => {
+  if (chunk.length <= MAX_CHUNK_CHARS) return [chunk];
+
+  const pieces: string[] = [];
+  const words = chunk.split(' ');
+  let current = '';
+
+  const flush = () => {
+    if (current) {
+      pieces.push(current);
+      current = '';
+    }
+  };
+
+  for (const word of words) {
+    if (word.length > MAX_CHUNK_CHARS) {
+      flush();
+      for (let i = 0; i < word.length; i += MAX_CHUNK_CHARS) {
+        pieces.push(word.slice(i, i + MAX_CHUNK_CHARS));
+      }
+      continue;
+    }
+
+    const candidate = current ? `${current} ${word}` : word;
+    if (candidate.length <= MAX_CHUNK_CHARS) {
+      current = candidate;
+    } else {
+      flush();
+      current = word;
+    }
+  }
+
+  flush();
+  return pieces;
+};
 
 const chunkText = (text: string): string[] => {
   const normalized = text.replace(/\r\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
@@ -22,7 +61,7 @@ const chunkText = (text: string): string[] => {
       current = current ? `${current} ${trimmed}` : trimmed;
     } else {
       if (current) {
-        chunks.push(current.trim());
+        chunks.push(...splitOversized(current.trim()));
         const words = current.split(' ');
         const overlapWords = words.slice(-Math.floor(CHUNK_OVERLAP / 5));
         current = overlapWords.join(' ') + ' ' + trimmed;
@@ -32,8 +71,8 @@ const chunkText = (text: string): string[] => {
     }
   }
 
-  if (current.trim()) chunks.push(current.trim());
-  return chunks.filter(c => c.length > 20);
+  if (current.trim()) chunks.push(...splitOversized(current.trim()));
+  return chunks.filter(c => c.length > 20).slice(0, MAX_CHUNKS_PER_DOCUMENT);
 };
 
 const cosineSimilarity = (a: number[], b: number[]): number => {
@@ -131,6 +170,73 @@ describe('chunkText', () => {
       expect(chunk.length).toBeLessThan(CHUNK_SIZE * 2);
     }
   });
+
+  // ── oversized-chunk fallback (MAX_CHUNK_CHARS) ────────────────────────────────
+
+  test('splits a single very long paragraph (no blank lines) into bounded chunks', () => {
+    const longParagraph = Array.from({ length: 500 }, (_, i) => `word${i}`).join(' ')
+    const chunks = chunkText(longParagraph)
+
+    expect(chunks.length).toBeGreaterThan(1)
+    for (const chunk of chunks) {
+      expect(chunk.length).toBeLessThanOrEqual(MAX_CHUNK_CHARS)
+    }
+  })
+
+  test('does not silently drop text when splitting an oversized paragraph', () => {
+    const longParagraph = Array.from({ length: 500 }, (_, i) => `word${i}`).join(' ')
+    const chunks = chunkText(longParagraph)
+    const reassembled = chunks.join(' ')
+
+    expect(reassembled).toContain('word0')
+    expect(reassembled).toContain('word250')
+    expect(reassembled).toContain('word499')
+  })
+
+  test('hard-slices a single token longer than MAX_CHUNK_CHARS without dropping any characters', () => {
+    const hugeToken = 'x'.repeat(1000)
+    const chunks = chunkText(hugeToken)
+
+    expect(chunks.length).toBeGreaterThan(1)
+    expect(chunks.every(c => c.length <= MAX_CHUNK_CHARS)).toBe(true)
+    expect(chunks.join('').length).toBe(1000)
+  })
+
+  test('normal paragraph-based documents are unaffected by the oversized-chunk fallback', () => {
+    const text = 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.'
+    const chunks = chunkText(text)
+
+    expect(chunks).toHaveLength(1)
+    expect(chunks[0]).toContain('First paragraph.')
+    expect(chunks[0]).toContain('Third paragraph.')
+  })
+
+  test('never produces empty chunks', () => {
+    const text = 'A'.repeat(2000) + '\n\n' + 'B'.repeat(2000) + '\n\n\n\n' + 'short tail paragraph here'
+    const chunks = chunkText(text)
+
+    expect(chunks.every(c => c.length > 0)).toBe(true)
+  })
+
+  // ── total chunk cap (MAX_CHUNKS_PER_DOCUMENT) ─────────────────────────────────
+
+  test('caps the total number of chunks at MAX_CHUNKS_PER_DOCUMENT', () => {
+    const paragraphs = Array.from({ length: 400 }, (_, i) =>
+      `Paragraph number ${i} with some unique content to avoid being merged away.`
+    )
+    const text = paragraphs.join('\n\n')
+    const chunks = chunkText(text)
+
+    expect(chunks.length).toBeLessThanOrEqual(MAX_CHUNKS_PER_DOCUMENT)
+  })
+
+  test('does not cap documents that produce fewer than MAX_CHUNKS_PER_DOCUMENT chunks', () => {
+    const text = 'First paragraph.\n\nSecond paragraph.\n\nThird paragraph.'
+    const chunks = chunkText(text)
+
+    expect(chunks.length).toBeLessThan(MAX_CHUNKS_PER_DOCUMENT)
+    expect(chunks.length).toBeGreaterThan(0)
+  })
 });
 
 // ── cosineSimilarity ───────────────────────────────────────────────────────────
