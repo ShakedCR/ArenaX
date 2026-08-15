@@ -1,9 +1,7 @@
 import { Box, Button, Modal, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/useAuth'
-
-const GOLD = '#C9A84C'
-const DARK2 = '#12121A'
+import { GOLD, DARK2 } from '../../styles/themeConstants'
 
 const gameIcons = {
   Blackjack: '♠',

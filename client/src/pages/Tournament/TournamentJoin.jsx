@@ -4,12 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const DARK2 = '#12121A'
-const DARK3 = '#1C1C28'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, DARK2, DARK3, BEBAS } from '../../styles/themeConstants'
 
 const gameIcons = {
   Blackjack: '♠',

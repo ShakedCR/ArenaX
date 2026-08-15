@@ -5,12 +5,7 @@ import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import { useTriviaSocket } from '../../hooks/useTriviaSocket'
 import api from '../../services/api'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const DARK2 = '#12121A'
-const DARK3 = '#1C1C28'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, DARK2, DARK3, BEBAS } from '../../styles/themeConstants'
 const ANSWER_LABELS = ['A', 'B', 'C', 'D']
 
 const rankMedal = (rank) => {

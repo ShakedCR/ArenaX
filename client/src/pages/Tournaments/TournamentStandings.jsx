@@ -7,11 +7,7 @@ import AuthNavbar from '../../components/layout/AuthNavbar'
 import { connectSocket } from '../../services/socket'
 import StagesTimeline from '../../components/tournament/StagesTimeline'
 import PlayersTable from '../../components/tournament/PlayersTable'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const DARK2 = '#12121A'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
 
 const gameIcons = { Blackjack: '♠', Trivia: '❓' }
 

@@ -1,7 +1,5 @@
 import { Box, InputBase, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
-const DARK3 = '#1C1C28'
+import { GOLD, DARK3 } from '../../styles/themeConstants'
 
 export default function AuthInput({ label, placeholder, type = 'text', icon, value, onChange }) {
   return (

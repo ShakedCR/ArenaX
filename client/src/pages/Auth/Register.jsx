@@ -3,11 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AuthInput from '../../components/common/AuthInput'
 import { useAuth } from '../../contexts/useAuth'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const DARK2 = '#12121A'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, DARK2, BEBAS } from '../../styles/themeConstants'
 
 const validate = (form) => {
   if (form.fullName.trim().length < 2)

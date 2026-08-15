@@ -3,7 +3,7 @@ import { Box, Button, Drawer, Typography } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../contexts/useAuth'
-import { GOLD } from '../../styles/themeConstants'
+import { GOLD, DARK2 } from '../../styles/themeConstants'
 
 const NAV_ITEMS = [
   { label: 'Lobby', path: '/lobby' },
@@ -11,8 +11,6 @@ const NAV_ITEMS = [
   { label: 'Profile', path: '/profile' },
   { label: 'Wallet', path: '/wallet' }
 ]
-
-const DARK2 = '#12121A'
 
 function AuthNavbar({ username = 'Player', tokens = 0 }) {
   const navigate = useNavigate()

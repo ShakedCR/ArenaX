@@ -1,7 +1,5 @@
 import { Box, Typography } from '@mui/material'
-
-const GOLD = '#C9A84C'
-const DARK3 = '#1C1C28'
+import { GOLD, DARK3 } from '../../styles/themeConstants'
 
 const filters = ['All', 'Blackjack', 'Trivia']
 

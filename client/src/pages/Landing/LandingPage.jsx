@@ -5,10 +5,7 @@ import Footer from '../../components/layout/Footer'
 import StatBar from '../../components/landing/StatBar'
 import GameCard from '../../components/landing/GameCard'
 import StepCard from '../../components/landing/StepCard'
-
-const GOLD = '#C9A84C'
-const DARK = '#0A0A0F'
-const BEBAS = "'Bebas Neue', sans-serif"
+import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
 const games = [
   { icon: '♠', name: 'BLACKJACK', desc: 'Test your nerve. Beat the dealer. Outscore the table.', tag: '2-6 Players' },
