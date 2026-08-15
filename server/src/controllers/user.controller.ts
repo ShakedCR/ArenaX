@@ -86,7 +86,7 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const user = await User.findById(id).select("-password -googleId");
+    const user = await User.findById(id).select("fullName username avatarUrl");
 
     if (!user) {
       return res.status(404).json({
