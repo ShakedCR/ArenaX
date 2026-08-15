@@ -63,52 +63,19 @@ export const getMyWallet = async (req: AuthRequest, res: Response) => {
 };
 
 export const depositToWallet = async (req: AuthRequest, res: Response) => {
-  try {
-    const { amount, description } = req.body;
-
-    if (!req.userId) {
-      return res.status(401).json({
-        message: "Unauthorized"
-      });
-    }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({
-        message: "Amount must be a positive number"
-      });
-    }
-
-    const user = await User.findById(req.userId);
-
-    if (!user) {
-      return res.status(404).json({
-        message: "User not found"
-      });
-    }
-
-    user.walletBalance += amount;
-    await user.save();
-
-    const transaction = await Transaction.create({
-      user: user._id,
-      amount,
-      type: "deposit",
-      status: "completed",
-      description: normalizeDescription(description, "Wallet deposit")
-    });
-
-    return res.status(200).json({
-      message: "Deposit completed successfully",
-      wallet: buildWalletResponse(user),
-      transaction
-    });
-  } catch (error) {
-    console.error("Deposit error:", error);
-
-    return res.status(500).json({
-      message: "Server error while depositing funds"
+  if (!req.userId) {
+    return res.status(401).json({
+      message: "Unauthorized"
     });
   }
+
+  // No payment provider is integrated yet, so this endpoint cannot verify that
+  // a real deposit occurred. Crediting walletBalance directly from a
+  // client-supplied amount would let any user mint themselves unlimited
+  // tokens, so deposits are disabled until real payment verification exists.
+  return res.status(503).json({
+    message: "Wallet deposits are not available"
+  });
 };
 
 export const claimDailyBonus = async (req: AuthRequest, res: Response) => {
