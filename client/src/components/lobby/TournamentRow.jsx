@@ -2,25 +2,8 @@ import { Box, Button, Modal, Typography } from '@mui/material'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/useAuth'
 import { GOLD, DARK2 } from '../../styles/themeConstants'
-
-const gameIcons = {
-  Blackjack: '♠',
-  Trivia: '❓',
-}
-
-const statusColors = {
-  draft: '#3a3a3a',
-  open: '#2d5a27',
-  ongoing: '#1a3a5c',
-  completed: '#3a3a3a'
-}
-
-const statusTextColors = {
-  draft: '#888',
-  open: '#4caf50',
-  ongoing: '#2196f3',
-  completed: '#888'
-}
+import { gameIcons } from '../../styles/gameConstants'
+import { TOURNAMENT_STATUS_COLORS } from '../../styles/statusConstants'
 
 const normalizeId = (value) => {
   if (!value) return null
@@ -36,6 +19,10 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
   const { user } = useAuth()
   const { title, gameTitle, entryFee, participants, maxParticipants, status, createdBy, isPrivate } = tournament
   const [showInvite, setShowInvite] = useState(false)
+
+  const colors =
+    TOURNAMENT_STATUS_COLORS[status]
+    || TOURNAMENT_STATUS_COLORS.draft
 
   const isCreator = normalizeId(user?.id || user?._id) === normalizeId(createdBy)
   const inviteLink = tournament.inviteCode ? `${window.location.origin}/tournaments/join/${tournament.inviteCode}` : null
@@ -71,9 +58,9 @@ export default function TournamentRow({ tournament, onJoin, onOpen }) {
           </Box>
           <Box sx={{
             px: 1.5, py: 0.4, borderRadius: 1,
-            bgcolor: statusColors[status] || '#3a3a3a',
+            bgcolor: colors.bg,
           }}>
-            <Typography sx={{ fontSize: 11, fontWeight: 600, color: statusTextColors[status] || '#888', textTransform: 'capitalize' }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 600, color: colors.text, textTransform: 'capitalize' }}>
               {status}
             </Typography>
           </Box>

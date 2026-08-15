@@ -5,11 +5,7 @@ import api from '../../services/api'
 import { useAuth } from '../../contexts/useAuth'
 import AuthNavbar from '../../components/layout/AuthNavbar'
 import { GOLD, DARK, DARK2, DARK3, BEBAS } from '../../styles/themeConstants'
-
-const gameIcons = {
-  Blackjack: '♠',
-  Trivia: '❓',
-}
+import { gameIcons } from '../../styles/gameConstants'
 
 const normalizeId = (value) => {
   if (!value) return null
