@@ -14,6 +14,19 @@ import ActiveGameBanner from '../../components/layout/ActiveGameBanner'
 
 import { GOLD, DARK, BEBAS } from '../../styles/themeConstants'
 
+// Maps known backend join-failure messages to safe, user-facing text.
+// Any message not listed here (or a network/server error) falls back to the generic message.
+const JOIN_ERROR_MESSAGES = {
+  'Insufficient wallet balance to join this tournament': "You don't have enough tokens to join this tournament.",
+  'Tournament is not open for registration': 'This tournament is no longer open for registration.',
+  'Tournament is full': 'This tournament is full.',
+  'Invalid private tournament password': 'Incorrect tournament password.',
+  'Tournament not found': 'Tournament not found.',
+}
+
+const getJoinErrorMessage = (backendMessage) =>
+  JOIN_ERROR_MESSAGES[backendMessage] || 'Unable to join tournament. Please try again.'
+
 const normalizeId = (value) => {
   if (!value) return null
   if (typeof value === 'string') return value
@@ -30,6 +43,7 @@ export default function Lobby() {
   const [tab, setTab] = useState(0)
   const [filter, setFilter] = useState('All')
   const [modalOpen, setModalOpen] = useState(false)
+  const [error, setError] = useState('')
 
   const { tournaments, myTournaments, loading, fetchTournaments } =
     useTournaments({ includeMine: true })
@@ -40,6 +54,7 @@ export default function Lobby() {
   }, [tab, filter, tournaments, myTournaments])
 
   const handleJoin = async (tournament) => {
+    setError('')
     const userId = normalizeId(user?.id || user?._id)
     const creatorId = normalizeId(tournament?.createdBy)
     const isCreator = Boolean(userId && creatorId && userId === creatorId)
@@ -61,6 +76,8 @@ export default function Lobby() {
           console.error('[Lobby] Join failed:', err.response?.data)
           if (err.response?.data?.message === 'User already joined this tournament') {
             navigate(`/tournament/${tournament._id}/waiting`)
+          } else {
+            setError(getJoinErrorMessage(err.response?.data?.message))
           }
         }
         return
@@ -78,17 +95,21 @@ export default function Lobby() {
 
       if (err.response?.data?.message === 'User already joined this tournament') {
         navigate(`/tournament/${tournament._id}/waiting`)
+      } else {
+        setError(getJoinErrorMessage(err.response?.data?.message))
       }
     }
   }
 
   const handleOpen = async (tournament) => {
+    setError('')
     try {
       await api.patch(`/tournaments/${tournament._id}/open`)
       await fetchTournaments()
       await refreshUser()
     } catch (err) {
       console.error('[Lobby] Open failed:', err)
+      setError('Unable to open tournament. Please try again.')
     }
   }
 
@@ -148,6 +169,12 @@ export default function Lobby() {
         </Tabs>
 
         <FilterBar active={filter} onChange={setFilter} />
+
+        {error && (
+          <Typography sx={{ color: 'red', fontSize: 13, mb: 2, textAlign: 'center' }}>
+            {error}
+          </Typography>
+        )}
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}>

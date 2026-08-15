@@ -25,7 +25,7 @@ export default function useProfile() {
 
     setLoading(true)
 
-    api.get('/tournaments')
+    api.get('/tournaments/my')
       .then(res => {
         const all = Array.isArray(res.data?.tournaments)
           ? res.data.tournaments
@@ -81,7 +81,7 @@ export default function useProfile() {
     }
   }, [completedTournaments, userId])
 
-  const compressImage = (file) => new Promise((resolve) => {
+  const compressImage = (file) => new Promise((resolve, reject) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
     img.onload = () => {
@@ -96,6 +96,10 @@ export default function useProfile() {
       ctx.drawImage(img, sx, sy, side, side, 0, 0, SIZE, SIZE)
       URL.revokeObjectURL(url)
       canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.8)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Failed to load image'))
     }
     img.src = url
   })
