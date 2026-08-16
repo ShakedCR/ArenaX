@@ -31,7 +31,7 @@ import {
 } from "../src/services/ai-trivia-question.service";
 
 // ── Config ────────────────────────────────────────────────────────────────────
-const PDF_PATH      = "/Users/shakedcrissy/Downloads/Weight Loss Facts and Childhood Obesity.pdf";
+const PDF_PATH      = "/Users/shakedcrissy/Desktop/Weight Loss Facts and Childhood Obesity.pdf";
 const MIME_TYPE     = "application/pdf";
 const CATEGORY      = "Childhood Obesity";
 const SAFE_TOPIC    = CATEGORY;         // controller: safeTopic = safeCategory

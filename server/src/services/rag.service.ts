@@ -1,9 +1,12 @@
 import pdfParse from "pdf-parse";
 import DocumentChunk from "../models/document-chunk.model";
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+const OLLAMA_HOST =
+  process.env.OLLAMA_HOST || "http://localhost:11434";
+
 const OLLAMA_EMBED_MODEL =
   process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
+
 const OLLAMA_EMBED_TIMEOUT_MS =
   Number(process.env.OLLAMA_EMBED_TIMEOUT_MS) || 30_000;
 
@@ -11,17 +14,18 @@ const CHUNK_SIZE = 300;
 const CHUNK_OVERLAP = 50;
 const TOP_N_CHUNKS = 5;
 const MAX_EMBED_CHARS = 350;
-
-// Hard fallback cap for chunks that can't rely on blank-line paragraph breaks
-// (e.g. a poorly-parsed PDF with no double-newlines at all). Set equal to
-// MAX_EMBED_CHARS so every chunk that reaches getEmbedding() is represented
-// in full — never silently truncated.
 const MAX_CHUNK_CHARS = MAX_EMBED_CHARS;
-
-// Only the top TOP_N_CHUNKS chunks are ever read back for a given document,
-// so there is no benefit to embedding more than a small bounded number of
-// them — this keeps upload processing time bounded for large documents.
 const MAX_CHUNKS_PER_DOCUMENT = 50;
+
+/**
+ * Hybrid retrieval weights.
+ *
+ * Semantic similarity remains the primary retrieval signal,
+ * while lexical relevance receives a stronger reranking weight
+ * to favor chunks that explicitly match the requested category.
+ */
+const SEMANTIC_WEIGHT = 0.7;
+const LEXICAL_WEIGHT = 0.3;
 
 // ── Text extraction ────────────────────────────────────────────────────────────
 
@@ -39,44 +43,52 @@ const extractText = async (
 
 // ── Chunking ───────────────────────────────────────────────────────────────────
 
-/**
- * Hard fallback for a chunk that exceeds MAX_CHUNK_CHARS even after normal
- * paragraph merging (e.g. one huge paragraph, or text with no blank-line
- * breaks at all). Splits on word boundaries so no text is silently dropped,
- * and preserves original order. Below MAX_CHUNK_CHARS this is a no-op.
- */
-const splitOversized = (chunk: string): string[] => {
-  if (chunk.length <= MAX_CHUNK_CHARS) return [chunk];
+const splitOversized = (
+  chunk: string
+): string[] => {
+  if (chunk.length <= MAX_CHUNK_CHARS) {
+    return [chunk];
+  }
 
   const pieces: string[] = [];
-  const words = chunk.split(" ");
+  const words = chunk.split(/\s+/);
   let current = "";
 
   const flush = () => {
-    if (current) {
-      pieces.push(current);
+    if (current.trim()) {
+      pieces.push(current.trim());
       current = "";
     }
   };
 
   for (const word of words) {
     if (word.length > MAX_CHUNK_CHARS) {
-      // A single "word" longer than the cap (e.g. a URL) — hard-slice by
-      // character count rather than dropping it.
       flush();
 
-      for (let i = 0; i < word.length; i += MAX_CHUNK_CHARS) {
-        pieces.push(word.slice(i, i + MAX_CHUNK_CHARS));
+      for (
+        let i = 0;
+        i < word.length;
+        i += MAX_CHUNK_CHARS
+      ) {
+        pieces.push(
+          word.slice(
+            i,
+            i + MAX_CHUNK_CHARS
+          )
+        );
       }
 
       continue;
     }
 
-    const candidate = current
-      ? `${current} ${word}`
-      : word;
+    const candidate =
+      current.length > 0
+        ? `${current} ${word}`
+        : word;
 
-    if (candidate.length <= MAX_CHUNK_CHARS) {
+    if (
+      candidate.length <= MAX_CHUNK_CHARS
+    ) {
       current = candidate;
     } else {
       flush();
@@ -89,13 +101,16 @@ const splitOversized = (chunk: string): string[] => {
   return pieces;
 };
 
-const chunkText = (text: string): string[] => {
+const chunkText = (
+  text: string
+): string[] => {
   const normalized = text
     .replace(/\r\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-  const paragraphs = normalized.split(/\n\n+/);
+  const paragraphs =
+    normalized.split(/\n\n+/);
 
   const chunks: string[] = [];
   let current = "";
@@ -103,43 +118,62 @@ const chunkText = (text: string): string[] => {
   for (const paragraph of paragraphs) {
     const trimmed = paragraph.trim();
 
-    if (!trimmed) continue;
+    if (!trimmed) {
+      continue;
+    }
 
-    if ((current + " " + trimmed).length <= CHUNK_SIZE) {
-      current = current
+    const candidate =
+      current.length > 0
         ? `${current} ${trimmed}`
         : trimmed;
+
+    if (candidate.length <= CHUNK_SIZE) {
+      current = candidate;
+      continue;
+    }
+
+    if (current) {
+      chunks.push(
+        ...splitOversized(
+          current.trim()
+        )
+      );
+
+      const previousWords =
+        current.split(/\s+/);
+
+      const overlapWords =
+        previousWords.slice(
+          -Math.floor(
+            CHUNK_OVERLAP / 5
+          )
+        );
+
+      current =
+        `${overlapWords.join(" ")} ${trimmed}`.trim();
     } else {
-      if (current) {
-        chunks.push(
-          ...splitOversized(current.trim())
-        );
-
-        // Overlap: carry the tail of the previous chunk
-        const words = current.split(" ");
-        const overlapWords = words.slice(
-          -Math.floor(CHUNK_OVERLAP / 5)
-        );
-
-        current =
-          overlapWords.join(" ") +
-          " " +
-          trimmed;
-      } else {
-        current = trimmed;
-      }
+      current = trimmed;
     }
   }
 
   if (current.trim()) {
     chunks.push(
-      ...splitOversized(current.trim())
+      ...splitOversized(
+        current.trim()
+      )
     );
   }
 
   return chunks
-    .filter((c) => c.length > 20)
-    .slice(0, MAX_CHUNKS_PER_DOCUMENT);
+    .map((chunk) => chunk.trim())
+    .filter(
+      (chunk) =>
+        chunk.length > 20
+    )
+    .slice(
+      0,
+      MAX_CHUNKS_PER_DOCUMENT
+    );
 };
 
 // ── Embeddings ─────────────────────────────────────────────────────────────────
@@ -147,10 +181,11 @@ const chunkText = (text: string): string[] => {
 const getEmbedding = async (
   text: string
 ): Promise<number[]> => {
-  const safeText = text.slice(
-    0,
-    MAX_EMBED_CHARS
-  );
+  const safeText =
+    text.slice(
+      0,
+      MAX_EMBED_CHARS
+    );
 
   let response: Response;
 
@@ -161,7 +196,8 @@ const getEmbedding = async (
         method: "POST",
 
         headers: {
-          "Content-Type": "application/json",
+          "Content-Type":
+            "application/json",
         },
 
         body: JSON.stringify({
@@ -169,9 +205,10 @@ const getEmbedding = async (
           prompt: safeText,
         }),
 
-        signal: AbortSignal.timeout(
-          OLLAMA_EMBED_TIMEOUT_MS
-        ),
+        signal:
+          AbortSignal.timeout(
+            OLLAMA_EMBED_TIMEOUT_MS
+          ),
       }
     );
   } catch (err: any) {
@@ -190,7 +227,9 @@ const getEmbedding = async (
   if (!response.ok) {
     const body = await response
       .text()
-      .catch(() => "(unreadable)");
+      .catch(
+        () => "(unreadable)"
+      );
 
     console.error(
       `[RAG] Ollama embeddings error ${response.status}:`,
@@ -230,32 +269,135 @@ const cosineSimilarity = (
   }
 
   const dot = a.reduce(
-    (sum, ai, i) =>
-      sum + ai * b[i],
+    (sum, value, index) =>
+      sum +
+      value * b[index],
     0
   );
 
-  const magA = Math.sqrt(
-    a.reduce(
-      (sum, ai) =>
-        sum + ai * ai,
-      0
-    )
-  );
+  const magnitudeA =
+    Math.sqrt(
+      a.reduce(
+        (sum, value) =>
+          sum +
+          value * value,
+        0
+      )
+    );
 
-  const magB = Math.sqrt(
-    b.reduce(
-      (sum, bi) =>
-        sum + bi * bi,
-      0
-    )
-  );
+  const magnitudeB =
+    Math.sqrt(
+      b.reduce(
+        (sum, value) =>
+          sum +
+          value * value,
+        0
+      )
+    );
 
-  if (magA === 0 || magB === 0) {
+  if (
+    magnitudeA === 0 ||
+    magnitudeB === 0
+  ) {
     return 0;
   }
 
-  return dot / (magA * magB);
+  return (
+    dot /
+    (magnitudeA * magnitudeB)
+  );
+};
+
+// ── Lexical reranking ──────────────────────────────────────────────────────────
+
+const normalizeSearchText = (
+  value: string
+): string => {
+  return value
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9\u0590-\u05ff\s]/g,
+      " "
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const getQueryTerms = (
+  query: string
+): string[] => {
+  return normalizeSearchText(query)
+    .split(" ")
+    .filter(
+      (term) =>
+        term.length >= 4
+    );
+};
+
+const queryTermMatchesText = (
+  queryTerm: string,
+  textTerms: string[]
+): number => {
+  if (
+    textTerms.includes(queryTerm)
+  ) {
+    return 1;
+  }
+
+  if (queryTerm.length < 5) {
+    return 0;
+  }
+
+  const prefix =
+    queryTerm.slice(0, 4);
+
+  const prefixMatch =
+    textTerms.some(
+      (textTerm) =>
+        textTerm.length >= 5 &&
+        textTerm.startsWith(prefix)
+    );
+
+  return prefixMatch
+    ? 0.8
+    : 0;
+};
+
+const lexicalRelevance = (
+  query: string,
+  text: string
+): number => {
+  const queryTerms =
+    getQueryTerms(query);
+
+  if (
+    queryTerms.length === 0
+  ) {
+    return 0;
+  }
+
+  const textTerms =
+    normalizeSearchText(text)
+      .split(" ")
+      .filter(Boolean);
+
+  let score = 0;
+
+  for (
+    const queryTerm of queryTerms
+  ) {
+    score +=
+      queryTermMatchesText(
+        queryTerm,
+        textTerms
+      );
+  }
+
+  return Math.min(
+    1,
+    score /
+      queryTerms.length
+  );
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────────
@@ -265,139 +407,199 @@ export type PreparedChunk = {
   embedding: number[];
 };
 
-/**
- * Phase 1 — extract text, chunk, embed (all in-memory, no DB).
- * Call this BEFORE creating the tournament so we can use the context
- * for question generation without needing a tournamentId yet.
- */
-export const prepareDocumentChunks = async (
-  buffer: Buffer,
-  mimetype: string
-): Promise<PreparedChunk[]> => {
-  const text = await extractText(
-    buffer,
-    mimetype
-  );
-
-  const chunks = chunkText(text);
-
-  if (chunks.length === 0) {
-    throw new Error(
-      "Document appears to be empty or unreadable"
-    );
-  }
-
-  const results: PreparedChunk[] = [];
-
-  for (const text of chunks) {
-    const embedding =
-      await getEmbedding(text);
-
-    results.push({
-      text,
-      embedding,
-    });
-  }
-
-  return results;
-};
-
-/**
- * Phase 2 — save prepared chunks to DB once we have a tournamentId.
- */
-export const saveDocumentChunks = async (
-  preparedChunks: PreparedChunk[],
-  filename: string,
-  tournamentId: string
-): Promise<void> => {
-  await DocumentChunk.deleteMany({
-    tournament: tournamentId,
-  });
-
-  await DocumentChunk.insertMany(
-    preparedChunks.map(
-      (chunk, index) => ({
-        tournament: tournamentId,
-        text: chunk.text,
-        embedding: chunk.embedding,
-        source: filename,
-        chunkIndex: index,
-      })
-    )
-  );
-};
-
-/**
- * In-memory similarity search — used right after prepareDocumentChunks
- * when we already have the chunks in memory.
- */
-export const getContextFromChunks = async (
-  query: string,
-  preparedChunks: PreparedChunk[],
-  topN: number = TOP_N_CHUNKS
-): Promise<string[]> => {
-  const queryEmbedding =
-    await getEmbedding(query);
-
-  const scoredChunks =
-    preparedChunks.map(
-      (chunk, index) => ({
-        chunkIndex: index,
-        text: chunk.text,
-        score: cosineSimilarity(
-          queryEmbedding,
-          chunk.embedding
-        ),
-      })
-    );
-
-  const topChunks = scoredChunks
-    .sort(
-      (a, b) =>
-        b.score - a.score
-    )
-    .slice(0, topN);
-
-  // Debug output for verifying the RAG retrieval step.
-  // This does NOT change which chunks are selected.
-  console.log(
-    `\n[RAG] Query: "${query}"`
-  );
-
-  console.log(
-    `[RAG] Selected top ${topChunks.length} of ${preparedChunks.length} chunks:`
-  );
-
-  topChunks.forEach(
-    (chunk, index) => {
-      const preview = chunk.text
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 180);
-
-      console.log(
-        `[RAG] #${index + 1} | chunkIndex=${chunk.chunkIndex} | similarity=${chunk.score.toFixed(4)}`
+export const prepareDocumentChunks =
+  async (
+    buffer: Buffer,
+    mimetype: string
+  ): Promise<PreparedChunk[]> => {
+    const text =
+      await extractText(
+        buffer,
+        mimetype
       );
 
-      console.log(
-        `[RAG] text: ${preview}${chunk.text.length > 180 ? "..." : ""}`
+    const chunks =
+      chunkText(text);
+
+    if (
+      chunks.length === 0
+    ) {
+      throw new Error(
+        "Document appears to be empty or unreadable"
       );
     }
-  );
 
-  console.log(
-    "[RAG] End retrieval\n"
-  );
+    const results:
+      PreparedChunk[] = [];
 
-  return topChunks.map(
-    (chunk) => chunk.text
-  );
-};
+    for (
+      const chunk of chunks
+    ) {
+      const embedding =
+        await getEmbedding(
+          chunk
+        );
 
-export const deleteDocumentChunks = async (
-  tournamentId: string
-): Promise<void> => {
-  await DocumentChunk.deleteMany({
-    tournament: tournamentId,
-  });
-};
+      results.push({
+        text: chunk,
+        embedding,
+      });
+    }
+
+    return results;
+  };
+
+export const saveDocumentChunks =
+  async (
+    preparedChunks:
+      PreparedChunk[],
+    filename: string,
+    tournamentId: string
+  ): Promise<void> => {
+    await DocumentChunk.deleteMany(
+      {
+        tournament:
+          tournamentId,
+      }
+    );
+
+    await DocumentChunk.insertMany(
+      preparedChunks.map(
+        (
+          chunk,
+          index
+        ) => ({
+          tournament:
+            tournamentId,
+          text: chunk.text,
+          embedding:
+            chunk.embedding,
+          source:
+            filename,
+          chunkIndex:
+            index,
+        })
+      )
+    );
+  };
+
+export const getContextFromChunks =
+  async (
+    query: string,
+    preparedChunks:
+      PreparedChunk[],
+    topN: number =
+      TOP_N_CHUNKS
+  ): Promise<string[]> => {
+    const queryEmbedding =
+      await getEmbedding(query);
+
+    const scoredChunks =
+      preparedChunks.map(
+        (
+          chunk,
+          index
+        ) => {
+          const semanticScore =
+            cosineSimilarity(
+              queryEmbedding,
+              chunk.embedding
+            );
+
+          const lexicalScore =
+            lexicalRelevance(
+              query,
+              chunk.text
+            );
+
+          const finalScore =
+            semanticScore *
+              SEMANTIC_WEIGHT +
+            lexicalScore *
+              LEXICAL_WEIGHT;
+
+          return {
+            chunkIndex:
+              index,
+            text:
+              chunk.text,
+            semanticScore,
+            lexicalScore,
+            score:
+              finalScore,
+          };
+        }
+      );
+
+    const topChunks =
+      scoredChunks
+        .sort(
+          (a, b) =>
+            b.score -
+            a.score
+        )
+        .slice(
+          0,
+          topN
+        );
+
+    console.log(
+      `\n[RAG] Query: "${query}"`
+    );
+
+    console.log(
+      `[RAG] Selected top ${topChunks.length} of ${preparedChunks.length} chunks:`
+    );
+
+    topChunks.forEach(
+      (
+        chunk,
+        index
+      ) => {
+        const preview =
+          chunk.text
+            .replace(
+              /\s+/g,
+              " "
+            )
+            .trim()
+            .slice(
+              0,
+              180
+            );
+
+        console.log(
+          `[RAG] #${index + 1}` +
+            ` | chunkIndex=${chunk.chunkIndex}` +
+            ` | semantic=${chunk.semanticScore.toFixed(4)}` +
+            ` | lexical=${chunk.lexicalScore.toFixed(4)}` +
+            ` | final=${chunk.score.toFixed(4)}`
+        );
+
+        console.log(
+          `[RAG] text: ${preview}${chunk.text.length > 180 ? "..." : ""}`
+        );
+      }
+    );
+
+    console.log(
+      "[RAG] End retrieval\n"
+    );
+
+    return topChunks.map(
+      (chunk) =>
+        chunk.text
+    );
+  };
+
+export const deleteDocumentChunks =
+  async (
+    tournamentId: string
+  ): Promise<void> => {
+    await DocumentChunk.deleteMany(
+      {
+        tournament:
+          tournamentId,
+      }
+    );
+  };
