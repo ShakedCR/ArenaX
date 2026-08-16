@@ -2,8 +2,10 @@ import pdfParse from "pdf-parse";
 import DocumentChunk from "../models/document-chunk.model";
 
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
-const OLLAMA_EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
-const OLLAMA_EMBED_TIMEOUT_MS = Number(process.env.OLLAMA_EMBED_TIMEOUT_MS) || 30_000;
+const OLLAMA_EMBED_MODEL =
+  process.env.OLLAMA_EMBED_MODEL || "nomic-embed-text";
+const OLLAMA_EMBED_TIMEOUT_MS =
+  Number(process.env.OLLAMA_EMBED_TIMEOUT_MS) || 30_000;
 
 const CHUNK_SIZE = 300;
 const CHUNK_OVERLAP = 50;
@@ -23,11 +25,15 @@ const MAX_CHUNKS_PER_DOCUMENT = 50;
 
 // ── Text extraction ────────────────────────────────────────────────────────────
 
-const extractText = async (buffer: Buffer, mimetype: string): Promise<string> => {
+const extractText = async (
+  buffer: Buffer,
+  mimetype: string
+): Promise<string> => {
   if (mimetype === "application/pdf") {
     const parsed = await pdfParse(buffer);
     return parsed.text;
   }
+
   return buffer.toString("utf-8");
 };
 
@@ -58,13 +64,18 @@ const splitOversized = (chunk: string): string[] => {
       // A single "word" longer than the cap (e.g. a URL) — hard-slice by
       // character count rather than dropping it.
       flush();
+
       for (let i = 0; i < word.length; i += MAX_CHUNK_CHARS) {
         pieces.push(word.slice(i, i + MAX_CHUNK_CHARS));
       }
+
       continue;
     }
 
-    const candidate = current ? `${current} ${word}` : word;
+    const candidate = current
+      ? `${current} ${word}`
+      : word;
+
     if (candidate.length <= MAX_CHUNK_CHARS) {
       current = candidate;
     } else {
@@ -74,68 +85,135 @@ const splitOversized = (chunk: string): string[] => {
   }
 
   flush();
+
   return pieces;
 };
 
 const chunkText = (text: string): string[] => {
-  const normalized = text.replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  const normalized = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
   const paragraphs = normalized.split(/\n\n+/);
+
   const chunks: string[] = [];
   let current = "";
 
   for (const paragraph of paragraphs) {
     const trimmed = paragraph.trim();
+
     if (!trimmed) continue;
 
     if ((current + " " + trimmed).length <= CHUNK_SIZE) {
-      current = current ? `${current} ${trimmed}` : trimmed;
+      current = current
+        ? `${current} ${trimmed}`
+        : trimmed;
     } else {
       if (current) {
-        chunks.push(...splitOversized(current.trim()));
+        chunks.push(
+          ...splitOversized(current.trim())
+        );
+
         // Overlap: carry the tail of the previous chunk
         const words = current.split(" ");
-        const overlapWords = words.slice(-Math.floor(CHUNK_OVERLAP / 5));
-        current = overlapWords.join(" ") + " " + trimmed;
+        const overlapWords = words.slice(
+          -Math.floor(CHUNK_OVERLAP / 5)
+        );
+
+        current =
+          overlapWords.join(" ") +
+          " " +
+          trimmed;
       } else {
         current = trimmed;
       }
     }
   }
 
-  if (current.trim()) chunks.push(...splitOversized(current.trim()));
-  return chunks.filter(c => c.length > 20).slice(0, MAX_CHUNKS_PER_DOCUMENT);
+  if (current.trim()) {
+    chunks.push(
+      ...splitOversized(current.trim())
+    );
+  }
+
+  return chunks
+    .filter((c) => c.length > 20)
+    .slice(0, MAX_CHUNKS_PER_DOCUMENT);
 };
 
 // ── Embeddings ─────────────────────────────────────────────────────────────────
 
-const getEmbedding = async (text: string): Promise<number[]> => {
-  const safeText = text.slice(0, MAX_EMBED_CHARS);
+const getEmbedding = async (
+  text: string
+): Promise<number[]> => {
+  const safeText = text.slice(
+    0,
+    MAX_EMBED_CHARS
+  );
 
   let response: Response;
+
   try {
-    response = await fetch(`${OLLAMA_HOST}/api/embeddings`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: OLLAMA_EMBED_MODEL, prompt: safeText }),
-      signal: AbortSignal.timeout(OLLAMA_EMBED_TIMEOUT_MS),
-    });
+    response = await fetch(
+      `${OLLAMA_HOST}/api/embeddings`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          model: OLLAMA_EMBED_MODEL,
+          prompt: safeText,
+        }),
+
+        signal: AbortSignal.timeout(
+          OLLAMA_EMBED_TIMEOUT_MS
+        ),
+      }
+    );
   } catch (err: any) {
-    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
-      throw new Error(`Ollama embeddings timed out after ${OLLAMA_EMBED_TIMEOUT_MS}ms`);
+    if (
+      err?.name === "TimeoutError" ||
+      err?.name === "AbortError"
+    ) {
+      throw new Error(
+        `Ollama embeddings timed out after ${OLLAMA_EMBED_TIMEOUT_MS}ms`
+      );
     }
+
     throw err;
   }
 
   if (!response.ok) {
-    const body = await response.text().catch(() => "(unreadable)");
-    console.error(`[RAG] Ollama embeddings error ${response.status}:`, body);
-    throw new Error(`Ollama embeddings request failed: ${response.status}`);
+    const body = await response
+      .text()
+      .catch(() => "(unreadable)");
+
+    console.error(
+      `[RAG] Ollama embeddings error ${response.status}:`,
+      body
+    );
+
+    throw new Error(
+      `Ollama embeddings request failed: ${response.status}`
+    );
   }
 
-  const data = await response.json() as { embedding: number[] };
+  const data =
+    (await response.json()) as {
+      embedding: number[];
+    };
 
-  if (!Array.isArray(data.embedding) || data.embedding.length === 0) {
-    throw new Error("Ollama returned empty embedding");
+  if (
+    !Array.isArray(data.embedding) ||
+    data.embedding.length === 0
+  ) {
+    throw new Error(
+      "Ollama returned empty embedding"
+    );
   }
 
   return data.embedding;
@@ -143,18 +221,49 @@ const getEmbedding = async (text: string): Promise<number[]> => {
 
 // ── Cosine similarity ──────────────────────────────────────────────────────────
 
-const cosineSimilarity = (a: number[], b: number[]): number => {
-  if (a.length !== b.length) return 0;
-  const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
-  const magA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
-  const magB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
-  if (magA === 0 || magB === 0) return 0;
+const cosineSimilarity = (
+  a: number[],
+  b: number[]
+): number => {
+  if (a.length !== b.length) {
+    return 0;
+  }
+
+  const dot = a.reduce(
+    (sum, ai, i) =>
+      sum + ai * b[i],
+    0
+  );
+
+  const magA = Math.sqrt(
+    a.reduce(
+      (sum, ai) =>
+        sum + ai * ai,
+      0
+    )
+  );
+
+  const magB = Math.sqrt(
+    b.reduce(
+      (sum, bi) =>
+        sum + bi * bi,
+      0
+    )
+  );
+
+  if (magA === 0 || magB === 0) {
+    return 0;
+  }
+
   return dot / (magA * magB);
 };
 
 // ── Public API ─────────────────────────────────────────────────────────────────
 
-export type PreparedChunk = { text: string; embedding: number[] };
+export type PreparedChunk = {
+  text: string;
+  embedding: number[];
+};
 
 /**
  * Phase 1 — extract text, chunk, embed (all in-memory, no DB).
@@ -165,18 +274,31 @@ export const prepareDocumentChunks = async (
   buffer: Buffer,
   mimetype: string
 ): Promise<PreparedChunk[]> => {
-  const text = await extractText(buffer, mimetype);
+  const text = await extractText(
+    buffer,
+    mimetype
+  );
+
   const chunks = chunkText(text);
 
   if (chunks.length === 0) {
-    throw new Error("Document appears to be empty or unreadable");
+    throw new Error(
+      "Document appears to be empty or unreadable"
+    );
   }
 
   const results: PreparedChunk[] = [];
+
   for (const text of chunks) {
-    const embedding = await getEmbedding(text);
-    results.push({ text, embedding });
+    const embedding =
+      await getEmbedding(text);
+
+    results.push({
+      text,
+      embedding,
+    });
   }
+
   return results;
 };
 
@@ -188,16 +310,20 @@ export const saveDocumentChunks = async (
   filename: string,
   tournamentId: string
 ): Promise<void> => {
-  await DocumentChunk.deleteMany({ tournament: tournamentId });
+  await DocumentChunk.deleteMany({
+    tournament: tournamentId,
+  });
 
   await DocumentChunk.insertMany(
-    preparedChunks.map((chunk, index) => ({
-      tournament: tournamentId,
-      text: chunk.text,
-      embedding: chunk.embedding,
-      source: filename,
-      chunkIndex: index,
-    }))
+    preparedChunks.map(
+      (chunk, index) => ({
+        tournament: tournamentId,
+        text: chunk.text,
+        embedding: chunk.embedding,
+        source: filename,
+        chunkIndex: index,
+      })
+    )
   );
 };
 
@@ -210,18 +336,68 @@ export const getContextFromChunks = async (
   preparedChunks: PreparedChunk[],
   topN: number = TOP_N_CHUNKS
 ): Promise<string[]> => {
-  const queryEmbedding = await getEmbedding(query);
+  const queryEmbedding =
+    await getEmbedding(query);
 
-  return preparedChunks
-    .map(chunk => ({
-      text: chunk.text,
-      score: cosineSimilarity(queryEmbedding, chunk.embedding),
-    }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topN)
-    .map(c => c.text);
+  const scoredChunks =
+    preparedChunks.map(
+      (chunk, index) => ({
+        chunkIndex: index,
+        text: chunk.text,
+        score: cosineSimilarity(
+          queryEmbedding,
+          chunk.embedding
+        ),
+      })
+    );
+
+  const topChunks = scoredChunks
+    .sort(
+      (a, b) =>
+        b.score - a.score
+    )
+    .slice(0, topN);
+
+  // Debug output for verifying the RAG retrieval step.
+  // This does NOT change which chunks are selected.
+  console.log(
+    `\n[RAG] Query: "${query}"`
+  );
+
+  console.log(
+    `[RAG] Selected top ${topChunks.length} of ${preparedChunks.length} chunks:`
+  );
+
+  topChunks.forEach(
+    (chunk, index) => {
+      const preview = chunk.text
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 180);
+
+      console.log(
+        `[RAG] #${index + 1} | chunkIndex=${chunk.chunkIndex} | similarity=${chunk.score.toFixed(4)}`
+      );
+
+      console.log(
+        `[RAG] text: ${preview}${chunk.text.length > 180 ? "..." : ""}`
+      );
+    }
+  );
+
+  console.log(
+    "[RAG] End retrieval\n"
+  );
+
+  return topChunks.map(
+    (chunk) => chunk.text
+  );
 };
 
-export const deleteDocumentChunks = async (tournamentId: string): Promise<void> => {
-  await DocumentChunk.deleteMany({ tournament: tournamentId });
+export const deleteDocumentChunks = async (
+  tournamentId: string
+): Promise<void> => {
+  await DocumentChunk.deleteMany({
+    tournament: tournamentId,
+  });
 };

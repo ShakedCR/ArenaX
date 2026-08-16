@@ -15,9 +15,14 @@ type GenerateTriviaQuestionsParams = {
   context?: string[];
 };
 
-const OLLAMA_URL = process.env.OLLAMA_HOST || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "llama3";
-const OLLAMA_GENERATE_TIMEOUT_MS = Number(process.env.OLLAMA_GENERATE_TIMEOUT_MS) || 120_000;
+const OLLAMA_URL =
+  process.env.OLLAMA_HOST || "http://localhost:11434";
+
+const OLLAMA_MODEL =
+  process.env.OLLAMA_MODEL || "llama3";
+
+const OLLAMA_GENERATE_TIMEOUT_MS =
+  Number(process.env.OLLAMA_GENERATE_TIMEOUT_MS) || 120_000;
 
 const normalizeText = (value: unknown): string => {
   return String(value || "")
@@ -36,21 +41,26 @@ const buildPrompt = ({
   questionCount,
   context,
 }: GenerateTriviaQuestionsParams): string => {
-  const contextSection = context && context.length > 0
-    ? `
-The following is relevant content from an uploaded document. Base your questions ONLY on this material, and focus specifically on content related to "${category || topic}":
+  const contextSection =
+    context && context.length > 0
+      ? `
+The following is relevant content from an uploaded document.
+Base your questions ONLY on this material, and focus specifically
+on content related to "${category || topic}":
 
 ---
 ${context.join("\n\n---\n\n")}
 ---
 
 Important: questions must be directly answerable from the content above.
-Important: even if the document covers broader topics, only generate questions about "${category || topic}" specifically.`
-    : "";
+Important: even if the document covers broader topics, only generate
+questions about "${category || topic}" specifically.`
+      : "";
 
-  const languageInstruction = context && context.length > 0
-    ? "Important: Generate ALL questions, answers, and explanations in the same language as the document content above."
-    : "";
+  const languageInstruction =
+    context && context.length > 0
+      ? "Important: Generate ALL questions, answers, and explanations in the same language as the document content above."
+      : "";
 
   return `
 You are generating trivia questions for a competitive multiplayer quiz game.
@@ -60,13 +70,17 @@ Generate exactly ${questionCount} trivia questions.
 Topic: ${topic}
 Category: ${category || "General"}
 Difficulty: ${difficulty}
+
 ${contextSection}
+
 ${languageInstruction}
 
 Return JSON only.
 Do not include markdown.
 Do not include code fences.
 Do not include explanations outside the JSON.
+
+The root JSON value MUST be an array.
 
 Required JSON format:
 [
@@ -80,6 +94,7 @@ Required JSON format:
 
 Rules:
 - Generate exactly ${questionCount} questions.
+- The root JSON value MUST be an array.
 - Each question must have exactly 4 answers.
 - correctAnswerIndex must be 0, 1, 2, or 3.
 - Every question MUST include a non-empty "explanation" field.
@@ -109,17 +124,27 @@ const extractJsonArray = (content: string): unknown => {
     const end = trimmed.lastIndexOf("]");
 
     if (start === -1 || end === -1 || end <= start) {
-      throw new Error("AI response does not contain a JSON array");
+      throw new Error(
+        "AI response does not contain a JSON array"
+      );
     }
 
     const jsonText = trimmed.slice(start, end + 1);
+
     return JSON.parse(jsonText);
   }
 };
 
-const hasDuplicateAnswers = (answers: string[]): boolean => {
-  const normalizedAnswers = answers.map(normalizeForCompare);
-  return new Set(normalizedAnswers).size !== normalizedAnswers.length;
+const hasDuplicateAnswers = (
+  answers: string[]
+): boolean => {
+  const normalizedAnswers =
+    answers.map(normalizeForCompare);
+
+  return (
+    new Set(normalizedAnswers).size !==
+    normalizedAnswers.length
+  );
 };
 
 const buildFallbackExplanation = (
@@ -129,9 +154,15 @@ const buildFallbackExplanation = (
   return `The correct answer is "${correctAnswer}" for the question: ${question}`;
 };
 
-const normalizeQuestion = (rawQuestion: any): GeneratedTriviaQuestion | null => {
-  const question = normalizeText(rawQuestion?.question);
-  const rawAnswers = rawQuestion?.answers || rawQuestion?.options;
+const normalizeQuestion = (
+  rawQuestion: any
+): GeneratedTriviaQuestion | null => {
+  const question =
+    normalizeText(rawQuestion?.question);
+
+  const rawAnswers =
+    rawQuestion?.answers ||
+    rawQuestion?.options;
 
   if (!question) {
     return null;
@@ -142,8 +173,13 @@ const normalizeQuestion = (rawQuestion: any): GeneratedTriviaQuestion | null => 
   }
 
   const answers = rawAnswers
-    .map((answer: unknown) => normalizeText(answer))
-    .filter((answer: string) => answer.length > 0);
+    .map((answer: unknown) =>
+      normalizeText(answer)
+    )
+    .filter(
+      (answer: string) =>
+        answer.length > 0
+    );
 
   if (answers.length !== 4) {
     return null;
@@ -153,17 +189,24 @@ const normalizeQuestion = (rawQuestion: any): GeneratedTriviaQuestion | null => 
     return null;
   }
 
-  let correctAnswerIndex = rawQuestion?.correctAnswerIndex;
+  let correctAnswerIndex =
+    rawQuestion?.correctAnswerIndex;
 
   if (
     correctAnswerIndex === undefined &&
     typeof rawQuestion?.answer === "string"
   ) {
-    const normalizedAnswer = normalizeForCompare(rawQuestion.answer);
+    const normalizedAnswer =
+      normalizeForCompare(
+        rawQuestion.answer
+      );
 
-    correctAnswerIndex = answers.findIndex(
-      (answer) => normalizeForCompare(answer) === normalizedAnswer
-    );
+    correctAnswerIndex =
+      answers.findIndex(
+        (answer) =>
+          normalizeForCompare(answer) ===
+          normalizedAnswer
+      );
   }
 
   if (
@@ -175,27 +218,43 @@ const normalizeQuestion = (rawQuestion: any): GeneratedTriviaQuestion | null => 
     return null;
   }
 
-  const correctAnswer = answers[correctAnswerIndex];
+  const correctAnswer =
+    answers[correctAnswerIndex];
 
   let explanation =
-    normalizeText(rawQuestion?.explanation) ||
-    normalizeText(rawQuestion?.reason) ||
-    normalizeText(rawQuestion?.rationale) ||
-    normalizeText(rawQuestion?.why) ||
-    normalizeText(rawQuestion?.correctAnswerExplanation);
+    normalizeText(
+      rawQuestion?.explanation
+    ) ||
+    normalizeText(
+      rawQuestion?.reason
+    ) ||
+    normalizeText(
+      rawQuestion?.rationale
+    ) ||
+    normalizeText(
+      rawQuestion?.why
+    ) ||
+    normalizeText(
+      rawQuestion?.correctAnswerExplanation
+    );
 
   if (
     !explanation ||
-    explanation.toLowerCase() === "ai generated trivia question."
+    explanation.toLowerCase() ===
+      "ai generated trivia question."
   ) {
-    explanation = buildFallbackExplanation(question, correctAnswer);
+    explanation =
+      buildFallbackExplanation(
+        question,
+        correctAnswer
+      );
   }
 
   return {
     question,
     answers,
     correctAnswerIndex,
-    explanation
+    explanation,
   };
 };
 
@@ -204,102 +263,259 @@ const validateAndNormalizeQuestions = (
   questionCount: number
 ): GeneratedTriviaQuestion[] => {
   if (!Array.isArray(rawData)) {
-    throw new Error("AI response is not an array");
+    throw new Error(
+      "AI response is not an array"
+    );
   }
 
-  const seenQuestions = new Set<string>();
-  const validQuestions: GeneratedTriviaQuestion[] = [];
+  const seenQuestions =
+    new Set<string>();
+
+  const validQuestions:
+    GeneratedTriviaQuestion[] = [];
 
   for (const rawQuestion of rawData) {
-    const normalizedQuestion = normalizeQuestion(rawQuestion);
+    const normalizedQuestion =
+      normalizeQuestion(rawQuestion);
 
     if (!normalizedQuestion) {
       continue;
     }
 
-    const questionKey = normalizeForCompare(normalizedQuestion.question);
+    const questionKey =
+      normalizeForCompare(
+        normalizedQuestion.question
+      );
 
-    if (seenQuestions.has(questionKey)) {
+    if (
+      seenQuestions.has(questionKey)
+    ) {
       continue;
     }
 
     seenQuestions.add(questionKey);
-    validQuestions.push(normalizedQuestion);
+    validQuestions.push(
+      normalizedQuestion
+    );
   }
 
-  if (validQuestions.length < questionCount) {
-    throw new Error("AI did not return enough valid unique questions");
+  if (
+    validQuestions.length <
+    questionCount
+  ) {
+    throw new Error(
+      "AI did not return enough valid unique questions"
+    );
   }
 
-  return validQuestions.slice(0, questionCount);
+  return validQuestions.slice(
+    0,
+    questionCount
+  );
 };
 
-const callOllama = async (prompt: string): Promise<string> => {
+const callOllama = async (
+  prompt: string
+): Promise<string> => {
   let response: Response;
+
   try {
-    response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [{ role: "user", content: prompt }],
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(OLLAMA_GENERATE_TIMEOUT_MS),
-    });
+    response = await fetch(
+      `${OLLAMA_URL}/api/chat`,
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+
+          messages: [
+            {
+              role: "user",
+              content: prompt,
+            },
+          ],
+
+          stream: false,
+
+          /*
+           * Structured Output:
+           *
+           * Instead of only asking Ollama
+           * for generic JSON, we define
+           * exactly what the JSON must
+           * look like.
+           *
+           * Most importantly, the root
+           * value must be an ARRAY.
+           */
+          format: {
+            type: "array",
+
+            items: {
+              type: "object",
+
+              properties: {
+                question: {
+                  type: "string",
+                },
+
+                answers: {
+                  type: "array",
+
+                  items: {
+                    type: "string",
+                  },
+
+                  minItems: 4,
+                  maxItems: 4,
+                },
+
+                correctAnswerIndex: {
+                  type: "integer",
+                  minimum: 0,
+                  maximum: 3,
+                },
+
+                explanation: {
+                  type: "string",
+                },
+              },
+
+              required: [
+                "question",
+                "answers",
+                "correctAnswerIndex",
+                "explanation",
+              ],
+
+              additionalProperties: false,
+            },
+          },
+
+          /*
+           * Keep generation deterministic.
+           * This helps the model follow
+           * the required JSON structure.
+           */
+          options: {
+            temperature: 0,
+          },
+        }),
+
+        signal: AbortSignal.timeout(
+          OLLAMA_GENERATE_TIMEOUT_MS
+        ),
+      }
+    );
   } catch (err: any) {
-    if (err?.name === "TimeoutError" || err?.name === "AbortError") {
-      throw new Error(`Ollama generate timed out after ${OLLAMA_GENERATE_TIMEOUT_MS}ms`);
+    if (
+      err?.name === "TimeoutError" ||
+      err?.name === "AbortError"
+    ) {
+      throw new Error(
+        `Ollama generate timed out after ${OLLAMA_GENERATE_TIMEOUT_MS}ms`
+      );
     }
+
     throw err;
   }
 
   if (!response.ok) {
-    throw new Error(`Ollama request failed with status ${response.status}`);
+    const errorText =
+      await response.text();
+
+    throw new Error(
+      `Ollama request failed with status ${response.status}: ${errorText}`
+    );
   }
 
-  const data = await response.json();
-  const content = data?.message?.content;
+  const data =
+    await response.json();
 
-  if (!content || typeof content !== "string") {
-    throw new Error("Ollama response content is empty");
+  const content =
+    data?.message?.content;
+
+  if (
+    !content ||
+    typeof content !== "string"
+  ) {
+    throw new Error(
+      "Ollama response content is empty"
+    );
   }
 
   return content;
 };
 
-export const generateTriviaQuestionsWithAI = async (
-  params: GenerateTriviaQuestionsParams
-): Promise<GeneratedTriviaQuestion[]> => {
-  const prompt = buildPrompt(params);
-
-  try {
-    const content = await callOllama(prompt);
-    const rawJson = extractJsonArray(content);
-
-    return validateAndNormalizeQuestions(rawJson, params.questionCount);
-  } catch (firstError) {
-    console.error("AI trivia generation failed, retrying:", firstError);
+export const generateTriviaQuestionsWithAI =
+  async (
+    params: GenerateTriviaQuestionsParams
+  ): Promise<
+    GeneratedTriviaQuestion[]
+  > => {
+    const prompt =
+      buildPrompt(params);
 
     try {
+      const content =
+        await callOllama(prompt);
+
+      const rawJson =
+        extractJsonArray(content);
+
+      return validateAndNormalizeQuestions(
+        rawJson,
+        params.questionCount
+      );
+    } catch (firstError) {
+      console.error(
+        "AI trivia generation failed, retrying:",
+        firstError
+      );
+
       const retryPrompt = `${prompt}
 
 Important correction:
 Return ONLY a valid JSON array.
+The root JSON value MUST be the array itself.
+Do NOT wrap the array inside an object.
+Do NOT return {"questions": [...]}.
+Return [...] directly.
 Use "answers", not "options".
 Use "correctAnswerIndex", not "answer".
-Every question MUST include a specific non-empty "explanation".
-Do not repeat questions.
-Do not repeat answers inside the same question.
+Make sure every JSON object is complete.
+Make sure every string is properly quoted.
+Make sure all commas and brackets are valid.
+Do not include any text before or after the JSON array.
 `;
 
-      const content = await callOllama(retryPrompt);
-      const rawJson = extractJsonArray(content);
+      try {
+        const retryContent =
+          await callOllama(
+            retryPrompt
+          );
 
-      return validateAndNormalizeQuestions(rawJson, params.questionCount);
-    } catch (secondError) {
-      console.error("AI trivia generation failed again:", secondError);
-      throw new Error("Failed to generate trivia questions after two attempts. Make sure Ollama is running.");
+        const retryRawJson =
+          extractJsonArray(
+            retryContent
+          );
+
+        return validateAndNormalizeQuestions(
+          retryRawJson,
+          params.questionCount
+        );
+      } catch (secondError) {
+        console.error(
+          "AI trivia generation retry failed:",
+          secondError
+        );
+
+        throw secondError;
+      }
     }
-  }
-};
+  };
